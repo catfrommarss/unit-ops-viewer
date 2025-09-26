@@ -6,19 +6,146 @@
 html, body { height: 100%; }
 body {
   margin: 0;
-  background: #ffffff;         /* 白色底 */
-  color: #111827;              /* 深灰文本 */
+  background: #ffffff;
+  color: #111827;
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
 }
 
-/* 链接与 code 小样式 */
-a { color: #2563eb; text-decoration: none; }
-code { background: #f3f4f6; border-radius: 4px; padding: 2px 4px; }
+/* 链接样式 */
+a { 
+  color: #2563eb; 
+  text-decoration: none;
+  transition: color 0.2s;
+}
+a:hover { 
+  color: #1d4ed8;
+  text-decoration: underline;
+}
 
-/* 表格样式（列表展示） */
-table { width: 100%; border-collapse: collapse; }
-th, td { padding: 10px 8px; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 14px; }
-th { font-weight: 600; background: #f9fafb; position: sticky; top: 0; }
+/* 代码样式 */
+code { 
+  background: #f3f4f6; 
+  border-radius: 4px; 
+  padding: 2px 6px;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  word-break: break-all;
+}
 
-/* 状态小圆角标签 */
-.badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; color: #fff; font-size: 12px; line-height: 16px; }
+/* 表格样式 - 优化可读性 */
+.table-container {
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+table { 
+  width: 100%; 
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+thead {
+  background: linear-gradient(to bottom, #f9fafb, #f3f4f6);
+}
+
+th { 
+  padding: 12px 10px;
+  border-bottom: 2px solid #e5e7eb;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: inherit;
+  z-index: 10;
+}
+
+td { 
+  padding: 12px 10px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #111827;
+  vertical-align: middle;
+}
+
+/* 表格行悬停效果 */
+tbody tr {
+  transition: background-color 0.15s;
+}
+
+tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* 状态标签样式 */
+.badge { 
+  display: inline-block; 
+  padding: 3px 10px; 
+  border-radius: 9999px; 
+  color: #fff; 
+  font-size: 12px; 
+  line-height: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* 地址和哈希的特殊样式 */
+.address-cell {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  font-size: 12px;
+  color: #4b5563;
+  word-break: break-all;
+  line-height: 1.4;
+  max-width: 180px;
+}
+
+.tx-hash-cell {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  font-size: 12px;
+  max-width: 160px;
+}
+
+.tx-hash-cell a {
+  color: #2563eb;
+  word-break: break-all;
+  display: block;
+}
+
+/* 金额单元格 */
+.amount-cell {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* 时间单元格 */
+.time-cell {
+  white-space: nowrap;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+/* 链路单元格 */
+.chain-cell {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  th, td {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+  
+  .address-cell, .tx-hash-cell {
+    font-size: 11px;
+    max-width: 120px;
+  }
+}
