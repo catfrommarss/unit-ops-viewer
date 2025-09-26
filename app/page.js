@@ -214,7 +214,7 @@ export default function Page() {
   return (
     <main className="page-root">
       <header className="page-header">
-        <h1>Unit Operations Viewer</h1>
+        <h1>HyperUnit Viewer</h1>
         <p className="sub">输入地址，查询该地址相关的 Deposit / Withdraw 操作。</p>
         <div className="toolbar">
           <input
