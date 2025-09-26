@@ -45,7 +45,7 @@ code {
 }
 
 table {
-  width: 100%;
+  width: 200%;
   border-collapse: collapse;
   table-layout: fixed; /* 强制一行 */
   font-size: 13px;
