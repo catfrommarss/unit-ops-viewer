@@ -40,15 +40,6 @@ function badge(color, text) {
   return <span className="badge" style={{ background: color }}>{text}</span>;
 }
 
-function getExplorerUrl(chain, txHash) {
-  if (!txHash) return null;
-  const lower = (chain || '').toLowerCase();
-  if (lower.includes('eth')) return `https://etherscan.io/tx/${txHash}`;
-  if (lower.includes('sol')) return `https://solscan.io/tx/${txHash}`;
-  if (lower.includes('btc')) return `https://www.blockchain.com/btc/tx/${txHash}`;
-  return null;
-}
-
 function useQueryParams() {
   const [q, setQ] = useState(() => new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''));
   useEffect(() => {
@@ -150,7 +141,7 @@ export default function Page() {
   }
 
   return (
-    <main style={{ maxWidth: 1100, margin: '40px auto', padding: '0 16px' }}>
+    <main style={{ maxWidth: '100%', margin: '40px auto', padding: '0 16px' }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 12 }}>Unit Operations Viewer</h1>
       <p style={{ color: '#6b7280', marginBottom: 24 }}>
         输入地址，查询该地址相关的 Deposit / Withdraw 操作（数据来源：Hyperunit API）。
@@ -209,19 +200,6 @@ export default function Page() {
         </div>
       )}
 
-      {data?.addresses?.length > 0 && (
-        <div style={{ marginBottom: 16, fontSize: 14, color: '#374151' }}>
-          <div style={{ marginBottom: 6 }}><strong>相关协议地址（protocol addresses）</strong></div>
-          <ul style={{ margin: 0, paddingLeft: 18 }}>
-            {data.addresses.map((a, i) => (
-              <li key={i} style={{ marginBottom: 4 }}>
-                [{a.sourceCoinType} → {a.destinationChain}]: <code>{a.address}</code>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       {ops.length > 0 && (
         <div className="table-container">
           <table>
@@ -242,8 +220,6 @@ export default function Page() {
             <tbody>
               {ops.map((op, idx) => {
                 const color = STATE_COLOR[op.state] || '#4b5563';
-                const sourceTxUrl = getExplorerUrl(op.sourceChain, op.sourceTxHash);
-                const destinationTxUrl = getExplorerUrl(op.destinationChain, op.destinationTxHash);
                 return (
                   <tr key={idx}>
                     <td className="time-cell">{op.opCreatedAt ? new Date(op.opCreatedAt).toLocaleString() : ''}</td>
@@ -251,9 +227,8 @@ export default function Page() {
                     <td className="chain-cell">{`${op.sourceChain} → ${op.destinationChain}`}</td>
                     <td className="amount-cell">{humanAmount(op.asset, op.sourceAmount)} {op.asset?.toUpperCase()}</td>
                     <td>{op.destinationFeeAmount ? humanAmount(op.asset, op.destinationFeeAmount) : '-'}</td>
-                    <td className="tx-hash-cell"><code>{op.sourceTxHash || '-'}</code></td>
-                    <td className="tx-hash-cell"><code>{op.destinationTxHash || '-'}</code></td>
-
+                    <td className="address-cell"><code>{op.sourceAddress || '-'}</code></td>
+                    <td className="address-cell"><code>{op.destinationAddress || '-'}</code></td>
                     <td>{badge(color, op.state)}</td>
                     <td className="tx-hash-cell"><code>{op.sourceTxHash || '-'}</code></td>
                     <td className="tx-hash-cell"><code>{op.destinationTxHash || '-'}</code></td>
