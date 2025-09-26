@@ -251,8 +251,9 @@ export default function Page() {
                     <td className="chain-cell">{`${op.sourceChain} → ${op.destinationChain}`}</td>
                     <td className="amount-cell">{humanAmount(op.asset, op.sourceAmount)} {op.asset?.toUpperCase()}</td>
                     <td>{op.destinationFeeAmount ? humanAmount(op.asset, op.destinationFeeAmount) : '-'}</td>
-                    <td className="address-cell"><code>{op.sourceAddress || '-'}</code></td>
-                    <td className="address-cell"><code>{op.destinationAddress || '-'}</code></td>
+                    <td className="tx-hash-cell"><code>{op.sourceTxHash || '-'}</code></td>
+                    <td className="tx-hash-cell"><code>{op.destinationTxHash || '-'}</code></td>
+
                     <td>{badge(color, op.state)}</td>
                     <td className="tx-hash-cell">
                       {sourceTxUrl ? (
