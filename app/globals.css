@@ -1,5 +1,24 @@
 /* app/globals.css */
-:root { color-scheme: light dark; }
-* { box-sizing: border-box; }
+/* 强制走浅色模式 */
+:root { color-scheme: light; }
+
+/* 基础排版与白底 */
 html, body { height: 100%; }
-body { margin: 0; }
+body {
+  margin: 0;
+  background: #ffffff;         /* 白色底 */
+  color: #111827;              /* 深灰文本 */
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+
+/* 链接与 code 小样式 */
+a { color: #2563eb; text-decoration: none; }
+code { background: #f3f4f6; border-radius: 4px; padding: 2px 4px; }
+
+/* 表格样式（列表展示） */
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px 8px; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 14px; }
+th { font-weight: 600; background: #f9fafb; position: sticky; top: 0; }
+
+/* 状态小圆角标签 */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; color: #fff; font-size: 12px; line-height: 16px; }
