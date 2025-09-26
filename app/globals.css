@@ -1,150 +1,73 @@
 /* app/globals.css */
-/* —— 主题（和谐渐变 + 柔和阴影） —— */
-:root{
-  --bg-start:#f7f9fc;
-  --bg-end:#eef2ff;
-  --text:#0f172a;
-  --muted:#6b7280;
-  --card:#ffffff;
-  --line:#e5e7eb;
-  --hover:#f6faff;
-  --brand:#111827;
-  --thead1:#f9fafb;
-  --thead2:#f3f4f6;
-  --shadow:0 8px 28px rgba(2,6,23,.08);
-  --shadow-soft:0 3px 12px rgba(2,6,23,.06);
+/* 强制浅色 */
+:root { color-scheme: light; }
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: #ffffff;          /* 白底 */
+  color: #111827;               /* 深灰文字 */
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
 }
 
-html,body{height:100%;}
-body{
-  margin:0;
-  color:var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-  background:
-    radial-gradient(1200px 600px at 10% -10%, #ffffffaa 0%, transparent 60%),
-    linear-gradient(180deg, var(--bg-start) 0%, var(--bg-end) 100%);
-}
+/* 统一组件小样式 */
+a { color: #2563eb; text-decoration: none; }
+code { background: #f3f4f6; border-radius: 4px; padding: 2px 4px; }
 
-/* 容器与控件 */
-.container{max-width:1200px;margin:42px auto;padding:0 16px;}
-.h1{font-size:28px;font-weight:800;margin:0;}
-.sub{color:var(--muted);margin:8px 0 22px;}
+/* 容器与按钮 */
+.container { max-width: 1180px; margin: 40px auto; padding: 0 16px; }
+.btn {
+  border: 1px solid #111827;
+  border-radius: 10px;
+  padding: 10px 16px;
+  background: #111827;
+  color: #fff;
+  cursor: pointer;
+  transition: transform .04s ease, opacity .2s ease;
+}
+.btn:disabled { opacity: .6; cursor: not-allowed; }
+.btn:active { transform: translateY(1px); }
 
-.input,.select{
-  border:1px solid var(--line);
-  border-radius:12px;
-  padding:10px 12px;
-  background:#fff;
-  outline:none;
-  box-shadow:var(--shadow-soft);
+/* 表格美化 */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(17,24,39,0.06);
 }
-.input:focus,.select:focus{border-color:#94a3b8; box-shadow:0 0 0 3px #e2e8f0;}
-.btn{
-  border:1px solid var(--brand);
-  border-radius:12px;
-  padding:10px 16px;
-  background:var(--brand); color:#fff; cursor:pointer;
-  transition:transform .04s ease, box-shadow .2s ease, opacity .2s ease;
-  box-shadow:var(--shadow-soft);
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+th, td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #eef2f7;
+  text-align: left;
+  font-size: 14px;
+  vertical-align: top;
 }
-.btn:hover{box-shadow:var(--shadow);}
-.btn:active{transform:translateY(1px);}
-.btn:disabled{opacity:.6;cursor:not-allowed}
+thead th {
+  font-weight: 700;
+  color: #111827;
+  background: linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
+  position: sticky; top: 0; z-index: 1;
+}
+tbody tr:hover td { background: #fbfdff; }
+tbody tr:nth-child(even) td { background: #fcfcfd; }
 
-/* —— 表格（桌面端） —— */
-.table-wrap{
-  overflow-x:auto;               /* 整表横向滚动 */
-  border:1px solid var(--line);
-  border-radius:16px;
-  background:var(--card);
-  box-shadow:var(--shadow);
-}
-table{
-  width:100%;
-  border-collapse:collapse;
-  table-layout:auto;             /* 关键：按内容自适应列宽（配合 nowrap） */
-}
-th,td{
-  padding:12px 10px;
-  border-bottom:1px solid #eef2f7;
-  text-align:left;
-  font-size:14px;
-  vertical-align:top;
-}
-thead th{
-  font-weight:700; color:var(--text);
-  background:linear-gradient(180deg, var(--thead1) 0%, var(--thead2) 100%);
-  position:sticky; top:0; z-index:1;
-}
-tbody tr:hover td{background:var(--hover);}
-tbody tr:nth-child(even) td{background:#fcfcfd;}
+/* 芯片/状态 */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; color: #fff; font-size: 12px; line-height: 16px; }
 
-/* 标签/状态 */
-.badge{display:inline-block;padding:2px 8px;border-radius:9999px;color:#fff;font-size:12px;line-height:16px;}
-
-/* 等宽文本（默认可换行，用于一般字段） */
-.mono{
+/* 等宽长串文本：允许自动换行显示完整内容 */
+.mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size:12.5px;
-  letter-spacing:.2px;
+  font-size: 12.5px;
   word-break: break-all;
   white-space: pre-wrap;
 }
 
-/* —— 长串一行全量展示（地址/Tx 专用） —— */
-.nowrap{
-  white-space: nowrap !important;      /* 单行 */
-  word-break: normal !important;       /* 不拆词 */
-  overflow-x: auto;                    /* 超出横向滚动 */
-  -webkit-overflow-scrolling: touch;
-  max-width: 100%;
-  display: block;
-  hyphens: none;                        /* 禁止自动断字 */
-}
-
 /* 单击复制 */
-.copyable{cursor:copy;position:relative;padding-right:64px;}
-.copyable:hover{background:#f6faff;}
-.copied-badge{
-  position:absolute; right:8px; top:50%; transform:translateY(-50%);
-  background:#16a34a; color:#fff; font-size:11px; padding:2px 8px; border-radius:9999px;
-  box-shadow:0 4px 12px rgba(22,163,74,.25); opacity:.95;
-}
-
-/* 协议地址列表 */
-.protolist{margin:0;padding-left:18px;}
-.protolist li{margin-bottom:4px}
-
-/* —— 移动端自适应（卡片化） —— */
-@media (max-width: 860px){
-  .controls{flex-direction:column;align-items:stretch}
-  .table-wrap{border-radius:14px}
-  table, thead, tbody, th, td, tr{display:block;}
-  thead{display:none;}
-  tbody{padding:8px}
-  tbody tr{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:14px;
-    margin:10px 6px;
-    box-shadow:var(--shadow-soft);
-    overflow:hidden;
-  }
-  tbody tr:hover{box-shadow:var(--shadow);}
-  td{
-    border-bottom:1px dashed #e9edf3;
-    padding:10px 12px;
-  }
-  td:last-child{border-bottom:none}
-  td::before{
-    content: attr(data-label);
-    display:block;
-    font-weight:600;
-    color:#334155;
-    margin-bottom:6px;
-  }
-  /* 移动端：长串仍保持单行，超出在该行内部横向滚动 */
-  .nowrap{max-width:100%; overflow-x:auto;}
-  .copyable{padding-right:0}
-  .copied-badge{position:static;transform:none;margin-top:6px;display:inline-block;}
+.copyable { cursor: copy; position: relative; padding-right: 56px; }
+.copied-badge {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: #16a34a; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 9999px;
+  box-shadow: 0 4px 12px rgba(22,163,74,0.25);
+  opacity: .95;
 }

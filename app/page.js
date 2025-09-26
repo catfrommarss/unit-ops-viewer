@@ -22,14 +22,18 @@ function humanAmount(asset, raw) {
   const d = ASSET_DECIMALS[a] ?? 6;
   try {
     const n = BigInt(raw);
-    const base = BigInt(10) ** BigInt(d);
+    const base = BigInt(10) ** BigInt(d); // 纯 BigInt 幂
     const int = n / base;
     const frac = (n % base).toString().padStart(d, '0').replace(/0+$/, '');
     return frac ? `${int}.${frac}` : `${int}`;
-  } catch { return raw; }
+  } catch {
+    return raw;
+  }
 }
 
-function badge(color, text) { return <span className="badge" style={{ background: color }}>{text}</span>; }
+function badge(color, text) {
+  return <span className="badge" style={{ background: color }}>{text}</span>;
+}
 
 function useQueryParams() {
   const [q, setQ] = useState(() => new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''));
@@ -37,18 +41,21 @@ function useQueryParams() {
   return q;
 }
 
-/** 单击复制（支持单行全量显示） */
+/** 单击复制的通用单元格 */
 function CopyCell({ text }) {
   const [copied, setCopied] = useState(false);
   async function onCopy() {
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true); setTimeout(() => setCopied(false), 1200);
-    } catch {}
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch (e) {
+      // 忽略
+    }
   }
   return (
-    <div className="mono nowrap copyable" onClick={onCopy} title="单击复制">
+    <div className="mono copyable" onClick={onCopy} title="单击复制">
       {text || '-'}
       {copied && <span className="copied-badge">已复制</span>}
     </div>
@@ -63,7 +70,7 @@ export default function Page() {
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
 
-  // 同步 URL，便于分享
+  // 同步到 URL 便于分享
   useEffect(() => {
     const sp = new URLSearchParams();
     if (address) sp.set('address', address);
@@ -74,55 +81,84 @@ export default function Page() {
 
   const ops = useMemo(() => {
     if (!data?.operations) return [];
-    return [...data.operations].sort((a, b) => Date.parse(b.opCreatedAt||0) - Date.parse(a.opCreatedAt||0));
+    return [...data.operations].sort((a, b) => {
+      const ta = Date.parse(a.opCreatedAt || 0);
+      const tb = Date.parse(b.opCreatedAt || 0);
+      return tb - ta;
+    });
   }, [data]);
 
   async function fetchOps() {
-    setLoading(true); setError(''); setData(null);
+    setLoading(true);
+    setError('');
+    setData(null);
     try {
       const res = await fetch(`/api/operations?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`);
       const json = await res.json();
-      if (!res.ok) setError(json?.error || `HTTP ${res.status}`); else setData(json);
-    } catch (e) { setError(String(e)); }
-    finally { setLoading(false); }
+      if (!res.ok) setError(json?.error || `HTTP ${res.status}`);
+      else setData(json);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
   }
 
   // 如果 URL 自带 address，首次自动查询
-  useEffect(() => { if (address) fetchOps(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => {
+    if (address) fetchOps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <main className="container">
-      <h1 className="h1">Unit Operations Viewer</h1>
-      <p className="sub">输入地址，查询该地址相关的 Deposit / Withdraw 操作（数据来源：Hyperunit API）。</p>
+      <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>Unit Operations Viewer</h1>
+      <p style={{ color: '#6b7280', margin: '8px 0 24px' }}>
+        输入地址，查询该地址相关的 Deposit / Withdraw 操作（数据来源：Hyperunit API）。
+      </p>
 
-      <div className="controls" style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-        <input className="input" value={address} onChange={(e)=>setAddress(e.target.value.trim())}
-               placeholder="例如：0xa6f1Ef42D335Ec7CbfC39f57269c851568300132" style={{ flex:1 }}/>
-        <select className="select" value={network} onChange={(e)=>setNetwork(e.target.value)}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <input
+          value={address}
+          onChange={(e) => setAddress(e.target.value.trim())}
+          placeholder="例如：0xa6f1Ef42D335Ec7CbfC39f57269c851568300132"
+          style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: 10, padding: '10px 12px', background: '#ffffff' }}
+        />
+        <select
+          value={network}
+          onChange={(e) => setNetwork(e.target.value)}
+          style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: '10px 12px', background: '#ffffff' }}
+        >
           <option value="mainnet">Mainnet</option>
           <option value="testnet">Testnet</option>
         </select>
-        <button onClick={fetchOps} disabled={!address||loading} className="btn">{loading?'查询中…':'查询'}</button>
+        <button onClick={fetchOps} disabled={!address || loading} className="btn">
+          {loading ? '查询中…' : '查询'}
+        </button>
       </div>
 
       {error && (
-        <div style={{background:'#fff',border:'1px solid #fecaca',color:'#b91c1c',padding:12,borderRadius:12,marginBottom:12,boxShadow:'0 3px 12px rgba(185,28,28,.06)'}}>
+        <div style={{ background: '#fef2f2', color: '#b91c1c', padding: 12, borderRadius: 10, marginBottom: 12 }}>
           {error}
         </div>
       )}
 
-      {data?.addresses?.length>0 && (
-        <div style={{background:'var(--card)',border:'1px solid var(--line)',borderRadius:14,padding:12,marginBottom:14,boxShadow:'var(--shadow-soft)'}}>
-          <div style={{ marginBottom: 6, fontWeight: 700 }}>相关协议地址（protocol addresses）</div>
-          <ul className="protolist">
-            {data.addresses.map((a,i)=>(
-              <li key={i}>[{a.sourceCoinType} → {a.destinationChain}]: <code className="mono">{a.address}</code></li>
+      {/* 协议地址（可选） */}
+      {data?.addresses?.length > 0 && (
+        <div style={{ marginBottom: 16, fontSize: 14, color: '#374151' }}>
+          <div style={{ marginBottom: 6 }}><strong>相关协议地址（protocol addresses）</strong></div>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {data.addresses.map((a, i) => (
+              <li key={i} style={{ marginBottom: 4 }}>
+                [{a.sourceCoinType} → {a.destinationChain}]: <code className="mono">{a.address}</code>
+              </li>
             ))}
           </ul>
         </div>
       )}
 
-      {ops.length>0 && (
+      {/* 列表展示（全量显示 + 单击复制） */}
+      {ops.length > 0 && (
         <div className="table-wrap">
           <table>
             <thead>
@@ -132,12 +168,11 @@ export default function Page() {
                 <th style={{ minWidth: 160 }}>链路</th>
                 <th style={{ minWidth: 160 }}>金额</th>
                 <th style={{ minWidth: 150 }}>目的链费用</th>
-                {/* 四个长列：给足 minWidth，单行展示，不挤压 */}
-                <th style={{ minWidth: 720 }}>来源地址</th>
-                <th style={{ minWidth: 720 }}>目的地址</th>
+                <th style={{ minWidth: 360 }}>来源地址</th>
+                <th style={{ minWidth: 360 }}>目的地址</th>
                 <th style={{ minWidth: 130 }}>状态</th>
-                <th style={{ minWidth: 820 }}>源Tx</th>
-                <th style={{ minWidth: 820 }}>目的Tx</th>
+                <th style={{ minWidth: 380 }}>源Tx</th>
+                <th style={{ minWidth: 380 }}>目的Tx</th>
               </tr>
             </thead>
             <tbody>
@@ -145,18 +180,16 @@ export default function Page() {
                 const color = STATE_COLOR[op.state] || '#4b5563';
                 return (
                   <tr key={idx}>
-                    <td data-label="时间">{op.opCreatedAt?new Date(op.opCreatedAt).toLocaleString():''}</td>
-                    <td data-label="资产">{badge('#111827', op.asset?.toUpperCase() || 'ASSET')}</td>
-                    <td data-label="链路">{`${op.sourceChain} → ${op.destinationChain}`}</td>
-                    <td data-label="金额">{humanAmount(op.asset, op.sourceAmount)} {op.asset?.toUpperCase()}</td>
-                    <td data-label="目的链费用">{op.destinationFeeAmount?humanAmount(op.asset, op.destinationFeeAmount):'-'}</td>
-
-                    {/* —— 四个长字段：单行全量展示 + 可复制 —— */}
-                    <td data-label="来源地址"><CopyCell text={op.sourceAddress}/></td>
-                    <td data-label="目的地址"><CopyCell text={op.destinationAddress}/></td>
-                    <td data-label="状态">{badge(color, op.state)}</td>
-                    <td data-label="源Tx"><CopyCell text={op.sourceTxHash}/></td>
-                    <td data-label="目的Tx"><CopyCell text={op.destinationTxHash}/></td>
+                    <td>{op.opCreatedAt ? new Date(op.opCreatedAt).toLocaleString() : ''}</td>
+                    <td>{badge('#111827', op.asset?.toUpperCase() || 'ASSET')}</td>
+                    <td>{`${op.sourceChain} → ${op.destinationChain}`}</td>
+                    <td>{humanAmount(op.asset, op.sourceAmount)} {op.asset?.toUpperCase()}</td>
+                    <td>{op.destinationFeeAmount ? humanAmount(op.asset, op.destinationFeeAmount) : '-'}</td>
+                    <td><CopyCell text={op.sourceAddress} /></td>
+                    <td><CopyCell text={op.destinationAddress} /></td>
+                    <td>{badge(color, op.state)}</td>
+                    <td><CopyCell text={op.sourceTxHash} /></td>
+                    <td><CopyCell text={op.destinationTxHash} /></td>
                   </tr>
                 );
               })}
@@ -165,8 +198,8 @@ export default function Page() {
         </div>
       )}
 
-      {!loading && ops.length===0 && address && !error && (
-        <div style={{ color: 'var(--muted)', marginTop: 12 }}>没有找到相关操作。</div>
+      {!loading && ops.length === 0 && address && !error && (
+        <div style={{ color: '#6b7280', marginTop: 12 }}>没有找到相关操作。</div>
       )}
     </main>
   );
