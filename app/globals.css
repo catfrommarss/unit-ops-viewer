@@ -2,116 +2,162 @@
 :root { color-scheme: light; }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
-body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; color: #0f172a; background: #f8fafc; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
 
-/* 布局与标题 */
-.container { max-width: 1200px; margin: 40px auto; padding: 0 16px; }
-.title { font-size: 28px; font-weight: 800; margin: 0 0 8px; }
-.sub { color: #64748b; margin: 0 0 20px; }
+/* ===== 布局 & 主题 ===== */
+.page-root {
+  max-width: 100%;
+  padding: 24px 20px 40px;
+}
 
-/* 控件 */
-.toolbar { display: flex; gap: 8px; margin-bottom: 14px; }
+.page-header h1 {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0 0 8px;
+}
+
+.sub {
+  color: #6b7280;
+  margin: 0 0 16px;
+  line-height: 1.4;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
 .input, .select {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   padding: 10px 12px;
-  background: #fff;
   outline: none;
 }
-.input:focus, .select:focus { border-color: #94a3b8; box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.25); }
+
+.input { flex: 1; }
+.select { width: 140px; }
+
 .btn {
-  border: none; border-radius: 10px; padding: 10px 16px;
-  background: #111827; color: #fff; cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  background: #111827;
+  color: #fff;
+  cursor: pointer;
 }
 .btn:disabled { opacity: .6; cursor: not-allowed; }
 
-/* 提示 */
-.alert { border-radius: 12px; padding: 12px; margin: 10px 0; font-size: 14px; }
-.alert.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.alert-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  padding: 12px;
+  border-radius: 10px;
+  margin: 8px 0 6px;
+}
 
 /* 协议地址块 */
-.proto-box {
-  margin: 12px 0 16px;
-  font-size: 14px; color: #334155;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 12px 14px;
-  box-shadow: 0 4px 14px rgba(2,6,23,.06);
-}
+.proto-box { margin: 10px 0 6px; font-size: 14px; color: #374151; }
 .proto-title { margin-bottom: 6px; }
 .proto-list { margin: 0; padding-left: 18px; }
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
 
-/* 徽章 */
+/* ===== 徽章 ===== */
 .badge {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
   color: #fff;
   font-size: 12px;
-  line-height: 18px;
+  line-height: 16px;
   margin-right: 6px;
-  white-space: nowrap;
 }
 
-/* 表格容器（横向滚动 + 阴影 + 柔和边框） */
+/* ===== 表格（满宽 + 横向滚动） ===== */
 .table-wrap {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 10px 30px rgba(2,6,23,.08);
-}
-
-/* 让宽表可横向滚动查看长地址/Tx */
-.table {
   width: 100%;
-  overflow-x: auto;
+  overflow: hidden;
 }
 
-/* 利用“行式网格”模拟表格，便于自定义列宽 */
-.thead, .tbody { display: block; }
-.tr { display: flex; }
-.th, .td {
-  display: inline-flex;
-  align-items: center;
-  padding: 10px 12px;
-  border-right: 1px solid #e5e7eb;
-  position: relative; /* 允许放置拖拽句柄 */
+.table-scroll {
+  width: 100%;
+  overflow-x: auto; /* 横向滚动承载所有长字段，保证“完整显示” */
+  overflow-y: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(17,24,39,0.06);
   background: #fff;
 }
-.th:last-child, .td:last-child { border-right: none; }
-.th {
+
+/* 更宽一些的默认列高/间距，读起来舒适 */
+.u-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+  color: #111827;
+  min-width: 100%; /* 默认占满容器宽度 */
+}
+
+.th, .td {
+  border-bottom: 1px solid #f3f4f6;
+  padding: 10px 12px;
+  vertical-align: top;
+}
+
+thead .th {
+  position: sticky;
+  top: 0;
+  background: #f9fafb;
+  z-index: 1;
   font-weight: 700;
-  color: #0f172a;
-  background: #f1f5f9;
-  border-bottom: 1px solid #e2e8f0;
-  user-select: none;
-}
-.tbody .tr:not(.empty) .td {
-  border-bottom: 1px solid #f1f5f9;
+  color: #374151;
 }
 
-/* 行高亮与悬停效果 */
-.row-hover:hover .td { background: #f8fafc; }
-.row-hover:hover { box-shadow: inset 0 0 0 9999px rgba(2,6,23,.02); }
+.tr:hover .td {
+  background: #fbfdff;
+}
 
-/* 拖拽列宽的手柄 */
-.col-resizer {
-  position: absolute;
-  top: 0; right: 0; height: 100%;
+/* 让长文本强制单行 & 不截断（配合横向滚动完整显示） */
+.nowrap { white-space: nowrap; }
+.td.nowrap { overflow: visible; }
+
+/* 表头内部布局（标签 + 拖拽手柄） */
+.th-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* 拖拽手柄：点击并水平拖动调整当前列宽 */
+.th-resizer {
+  position: relative;
   width: 8px;
   cursor: col-resize;
-  background: transparent;
+  flex: 0 0 8px;
+  height: 24px;
+  margin-right: -6px; /* 增强可点中性 */
+  border-right: 2px solid transparent;
 }
-.col-resizer:hover { background: rgba(99,102,241,0.12); } /* 轻微可视化提示 */
-
-/* 单行强制不换行（地址/Tx 等长文本） */
-.nowrap { white-space: nowrap; }
-
-/* 让长文本本身不被打断；显示完整靠“拖拽加宽列 + 横向滚动” */
-.th-text, .td > span { overflow: visible; }
+.th-resizer:hover {
+  border-right-color: #c7d2fe;
+}
 
 /* 空状态 */
-.empty .td { color: #64748b; }
+.empty {
+  text-align: center;
+  padding: 20px 12px;
+  color: #6b7280;
+}
+
+/* 轻量标签组 */
+.chip-group .badge { margin-right: 0; }
+
+/* 更柔和的滚动条（可选） */
+.table-scroll::-webkit-scrollbar { height: 10px; }
+.table-scroll::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 10px;
+}
+.table-scroll::-webkit-scrollbar-thumb:hover { background: #d1d5db; }

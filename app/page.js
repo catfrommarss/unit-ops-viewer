@@ -1,22 +1,20 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 
-/** ========================= 工具函数 ========================= */
+/** ====== 工具 & 显示辅助 ====== */
 const ASSET_DECIMALS = { btc: 8, eth: 18, sol: 9 };
-
 function humanAmount(asset, raw) {
-  if (!raw && raw !== 0) return '';
+  if (!raw) return '';
   const a = (asset || '').toLowerCase();
   const d = ASSET_DECIMALS[a] ?? 6;
   try {
     const n = BigInt(raw);
-    const base = BigInt(10) ** BigInt(d);
-    const int = n / base;
-    const frac = (n % base).toString().padStart(d, '0').replace(/0+$/, '');
+    const int = n / BigInt(10 ** d);
+    const frac = (n % BigInt(10 ** d)).toString().padStart(d, '0').replace(/0+$/, '');
     return frac ? `${int}.${frac}` : `${int}`;
   } catch {
-    return String(raw);
+    return raw;
   }
 }
 
@@ -33,19 +31,18 @@ const STATE_COLOR = {
   failure: '#dc2626'
 };
 
-function Badge({ color = '#111827', children }) {
+function badge(color, text) {
   return (
-    <span
-      className="badge"
-      style={{ background: color }}
-    >
-      {children}
+    <span className="badge" style={{ background: color }}>
+      {text}
     </span>
   );
 }
 
 function useQueryParams() {
-  const [q, setQ] = useState(() => new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''));
+  const [q, setQ] = useState(
+    () => new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+  );
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     setQ(sp);
@@ -53,43 +50,22 @@ function useQueryParams() {
   return q;
 }
 
-/** ================ 可拖动列宽 Hook ================= */
-function useResizableColumns(initial) {
-  const [widths, setWidths] = useState(initial);
-  const dragging = useRef(null); // { key, startX, startWidth }
+/** ====== 列配置（可拖拽宽度） ====== */
+const COLUMN_DEFS = [
+  { key: 'time', label: '时间', min: 140, init: 180 },
+  { key: 'asset', label: '资产', min: 90, init: 110 },
+  { key: 'route', label: '路径', min: 140, init: 180 },
+  { key: 'state', label: '状态', min: 120, init: 150 },
+  { key: 'amount', label: '金额', min: 160, init: 200 },
+  { key: 'sourceAddress', label: '来源地址', min: 360, init: 520, mono: true, forceOneLine: true },
+  { key: 'destinationAddress', label: '目的地址', min: 360, init: 520, mono: true, forceOneLine: true },
+  { key: 'sourceTxHash', label: '源Tx', min: 420, init: 560, mono: true, forceOneLine: true },
+  { key: 'destinationTxHash', label: '目的Tx', min: 420, init: 560, mono: true, forceOneLine: true },
+  { key: 'protocolAddress', label: '协议地址', min: 360, init: 480, mono: true, forceOneLine: true },
+  { key: 'fees', label: '费用', min: 160, init: 200 },
+];
 
-  useEffect(() => {
-    function onMove(e) {
-      if (!dragging.current) return;
-      const { key, startX, startWidth } = dragging.current;
-      const delta = e.clientX - startX;
-      const next = Math.max(80, startWidth + delta); // 每列最小80px，避免挤没
-      setWidths((w) => ({ ...w, [key]: next }));
-    }
-    function onUp() {
-      dragging.current = null;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    }
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, []);
-
-  function startDrag(e, key) {
-    const startWidth = widths[key] ?? 160;
-    dragging.current = { key, startX: e.clientX, startWidth };
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-  }
-
-  return { widths, startDrag, setWidths };
-}
-
-/** ========================= 页面组件 ========================= */
+/** ====== 主页面 ====== */
 export default function Page() {
   const q = useQueryParams();
   const [address, setAddress] = useState(q.get('address') || '');
@@ -98,35 +74,19 @@ export default function Page() {
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
 
-  // 列定义（顺序即表头顺序）
-  const columns = [
-    { key: 'time', title: '时间' },
-    { key: 'asset', title: '资产' },
-    { key: 'chains', title: '链路' },
-    { key: 'state', title: '状态' },
-    { key: 'amount', title: '金额' },
-    { key: 'sourceAddress', title: '来源地址', forceOneLine: true },
-    { key: 'destinationAddress', title: '目的地址', forceOneLine: true },
-    { key: 'protocolAddress', title: '协议地址', forceOneLine: true },
-    { key: 'sourceTxHash', title: '源Tx', forceOneLine: true },
-    { key: 'destinationTxHash', title: '目的Tx', forceOneLine: true }
-  ];
+  // 列宽状态
+  const [colWidths, setColWidths] = useState(() =>
+    COLUMN_DEFS.reduce((acc, c) => {
+      acc[c.key] = c.init;
+      return acc;
+    }, {})
+  );
 
-  // 初始列宽（可根据需要调整）
-  const { widths, startDrag } = useResizableColumns({
-    time: 160,
-    asset: 100,
-    chains: 140,
-    state: 120,
-    amount: 160,
-    sourceAddress: 420,
-    destinationAddress: 420,
-    protocolAddress: 420,
-    sourceTxHash: 520,
-    destinationTxHash: 520
-  });
+  // 拖拽状态
+  const dragRef = useRef({ activeKey: null, startX: 0, startW: 0 });
+  const tableRef = useRef(null);
 
-  // 同步 URL（便于分享）
+  // 同步 URL
   useEffect(() => {
     const sp = new URLSearchParams();
     if (address) sp.set('address', address);
@@ -145,6 +105,7 @@ export default function Page() {
   }, [data]);
 
   async function fetchOps() {
+    if (!address) return;
     setLoading(true);
     setError('');
     setData(null);
@@ -165,137 +126,174 @@ export default function Page() {
     }
   }
 
-  // 如果 URL 自带 address，第一次自动加载
   useEffect(() => {
     if (address) fetchOps();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** ====== 拖拽列宽 ====== */
+  const onDown = (key, e) => {
+    const th = e.currentTarget.parentElement; // <th>
+    const startW = th.getBoundingClientRect().width;
+    dragRef.current = { activeKey: key, startX: e.clientX, startW };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    e.preventDefault();
+  };
+
+  const onMove = useCallback((e) => {
+    const { activeKey, startX, startW } = dragRef.current;
+    if (!activeKey) return;
+    const delta = e.clientX - startX;
+    const def = COLUMN_DEFS.find(c => c.key === activeKey);
+    const newW = Math.max(def?.min || 60, Math.round(startW + delta));
+    setColWidths(prev => ({ ...prev, [activeKey]: newW }));
+  }, []);
+
+  const onUp = useCallback(() => {
+    dragRef.current = { activeKey: null, startX: 0, startW: 0 };
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }, [onMove]);
+
+  /** ====== 单元格内容渲染 ====== */
+  const renderCell = (op, key) => {
+    switch (key) {
+      case 'time':
+        return op.opCreatedAt ? new Date(op.opCreatedAt).toLocaleString() : '';
+      case 'asset':
+        return (
+          <div className="chip-group">
+            {badge('#111827', op.asset?.toUpperCase() || 'ASSET')}
+          </div>
+        );
+      case 'route':
+        return `${op.sourceChain} → ${op.destinationChain}`;
+      case 'state':
+        return (
+          <div className="chip-group">
+            {badge(STATE_COLOR[op.state] || '#4b5563', op.state || '')}
+          </div>
+        );
+      case 'amount':
+        return `${humanAmount(op.asset, op.sourceAmount)} ${op.asset?.toUpperCase()}`;
+      case 'fees': {
+        const feeA = op.destinationFeeAmount ? `目的链费: ${humanAmount(op.asset, op.destinationFeeAmount)}` : '';
+        const feeB = op.sweepFeeAmount ? `Sweep费: ${op.sweepFeeAmount}` : '';
+        return [feeA, feeB].filter(Boolean).join(' | ') || '-';
+      }
+      case 'sourceAddress':
+        return op.sourceAddress || '';
+      case 'destinationAddress':
+        return op.destinationAddress || '-';
+      case 'sourceTxHash':
+        return op.sourceTxHash || '';
+      case 'destinationTxHash':
+        return op.destinationTxHash || '-';
+      case 'protocolAddress':
+        return op.protocolAddress || '';
+      default:
+        return '';
+    }
+  };
+
   return (
-    <main className="container">
-      <h1 className="title">Unit Operations Viewer</h1>
-      <p className="sub">
-        输入 Hyperliquid / EVM 地址，查询该地址相关的 Deposit / Withdraw 操作（数据来源：Hyperunit API）。
-      </p>
-
-      <div className="toolbar">
-        <input
-          value={address}
-          onChange={(e) => setAddress(e.target.value.trim())}
-          placeholder="例如：0xa6f1Ef42D335Ec7CbfC39f57269c851568300132"
-          className="input"
-        />
-        <select
-          value={network}
-          onChange={(e) => setNetwork(e.target.value)}
-          className="select"
-        >
-          <option value="mainnet">Mainnet</option>
-          <option value="testnet">Testnet</option>
-        </select>
-        <button
-          onClick={fetchOps}
-          disabled={!address || loading}
-          className="btn"
-        >
-          {loading ? '查询中…' : '查询'}
-        </button>
-      </div>
-
-      {error && (
-        <div className="alert error">{error}</div>
-      )}
-
-      {data?.addresses?.length > 0 && (
-        <div className="proto-box">
-          <div className="proto-title"><strong>相关协议地址（protocol addresses）</strong></div>
-          <ul className="proto-list">
-            {data.addresses.map((a, i) => (
-              <li key={i}>
-                [{a.sourceCoinType} → {a.destinationChain}]: <code className="mono">{a.address}</code>
-              </li>
-            ))}
-          </ul>
+    <main className="page-root">
+      <header className="page-header">
+        <h1>Unit Operations Viewer</h1>
+        <p className="sub">输入 Hyperliquid / EVM 地址，查询该地址相关的 Deposit / Withdraw 操作（数据来源：Hyperunit API）。</p>
+        <div className="toolbar">
+          <input
+            value={address}
+            onChange={(e) => setAddress(e.target.value.trim())}
+            placeholder="例如：0xa6f1Ef42D335Ec7CbfC39f57269c851568300132"
+            className="input"
+          />
+          <select
+            value={network}
+            onChange={(e) => setNetwork(e.target.value)}
+            className="select"
+          >
+            <option value="mainnet">Mainnet</option>
+            <option value="testnet">Testnet</option>
+          </select>
+          <button
+            onClick={fetchOps}
+            disabled={!address || loading}
+            className="btn"
+          >
+            {loading ? '查询中…' : '查询'}
+          </button>
         </div>
-      )}
 
-      {/* 表格区域 */}
-      <div className="table-wrap">
-        <div className="table" role="table">
-          {/* 表头 */}
-          <div className="thead" role="rowgroup">
-            <div className="tr" role="row">
-              {columns.map((col) => (
-                <div
-                  key={col.key}
-                  role="columnheader"
-                  className="th"
-                  style={{ width: widths[col.key] }}
-                >
-                  <span className="th-text">{col.title}</span>
-                  <span
-                    className="col-resizer"
-                    onMouseDown={(e) => startDrag(e, col.key)}
-                    title="拖动调整列宽"
-                  />
-                </div>
+        {error && (
+          <div className="alert-error">{error}</div>
+        )}
+
+        {data?.addresses?.length > 0 && (
+          <div className="proto-box">
+            <div className="proto-title"><strong>相关协议地址（protocol addresses）</strong></div>
+            <ul className="proto-list">
+              {data.addresses.map((a, i) => (
+                <li key={i}>
+                  [{a.sourceCoinType} → {a.destinationChain}]: <code className="mono">{a.address}</code>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
+        )}
+      </header>
 
-          {/* 表体 */}
-          <div className="tbody" role="rowgroup">
-            {ops.map((op, idx) => {
-              const color = STATE_COLOR[op.state] || '#4b5563';
-              const time = op.opCreatedAt ? new Date(op.opCreatedAt).toLocaleString() : '';
-              const chains = `${op.sourceChain} → ${op.destinationChain}`;
-              const amount = `${humanAmount(op.asset, op.sourceAmount)} ${op.asset?.toUpperCase() || ''}`;
-              return (
-                <div className="tr row-hover" role="row" key={idx}>
-                  <div className="td" style={{ width: widths.time }}>
-                    <span className="mono nowrap">{time}</span>
-                  </div>
-                  <div className="td" style={{ width: widths.asset }}>
-                    <Badge>{op.asset?.toUpperCase() || 'ASSET'}</Badge>
-                  </div>
-                  <div className="td" style={{ width: widths.chains }}>
-                    <span className="mono nowrap">{chains}</span>
-                  </div>
-                  <div className="td" style={{ width: widths.state }}>
-                    <Badge color={color}>{op.state}</Badge>
-                  </div>
-                  <div className="td" style={{ width: widths.amount }}>
-                    <span className="mono nowrap">{amount}</span>
-                  </div>
-                  <div className="td" style={{ width: widths.sourceAddress }}>
-                    <span className="mono nowrap">{op.sourceAddress}</span>
-                  </div>
-                  <div className="td" style={{ width: widths.destinationAddress }}>
-                    <span className="mono nowrap">{op.destinationAddress || '-'}</span>
-                  </div>
-                  <div className="td" style={{ width: widths.protocolAddress }}>
-                    <span className="mono nowrap">{op.protocolAddress}</span>
-                  </div>
-                  <div className="td" style={{ width: widths.sourceTxHash }}>
-                    <span className="mono nowrap">{op.sourceTxHash}</span>
-                  </div>
-                  <div className="td" style={{ width: widths.destinationTxHash }}>
-                    <span className="mono nowrap">{op.destinationTxHash || '-'}</span>
-                  </div>
-                </div>
-              );
-            })}
-
-            {!loading && ops.length === 0 && address && !error && (
-              <div className="tr empty" role="row">
-                <div className="td" style={{ width: '100%' }}>
-                  没有找到相关操作。
-                </div>
-              </div>
-            )}
-          </div>
+      <section className="table-wrap" ref={tableRef}>
+        <div className="table-scroll">
+          <table className="u-table" style={{ tableLayout: 'fixed', width: '100%' }}>
+            <colgroup>
+              {COLUMN_DEFS.map(col => (
+                <col key={col.key} style={{ width: (colWidths[col.key] ?? col.init) + 'px' }} />
+              ))}
+            </colgroup>
+            <thead>
+              <tr>
+                {COLUMN_DEFS.map(col => (
+                  <th key={col.key} className="th">
+                    <div className="th-inner">
+                      <span className="th-label">{col.label}</span>
+                      <span
+                        className="th-resizer"
+                        onMouseDown={(e) => onDown(col.key, e)}
+                        title="拖拽调整列宽"
+                      />
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {!loading && ops.length === 0 && address && !error && (
+                <tr>
+                  <td className="empty" colSpan={COLUMN_DEFS.length}>没有找到相关操作。</td>
+                </tr>
+              )}
+              {ops.map((op, idx) => (
+                <tr key={idx} className="tr">
+                  {COLUMN_DEFS.map(col => {
+                    const cls = [
+                      'td',
+                      col.mono ? 'mono' : '',
+                      col.forceOneLine ? 'nowrap' : '',
+                    ].join(' ');
+                    return (
+                      <td key={col.key} className={cls}>
+                        {renderCell(op, col.key)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </div>
+      </section>
     </main>
   );
 }
