@@ -9,14 +9,17 @@ body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI
 .page-header h1 { font-size: 28px; font-weight: 800; margin: 0 0 8px; }
 .sub { color: #6b7280; margin: 0 0 16px; line-height: 1.4; }
 
-.toolbar { display: flex; gap: 8px; margin: 0 0 14px; }
+.toolbar { display: flex; gap: 8px; margin: 0 0 14px; flex-wrap: wrap; }
 .input, .select {
   border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; outline: none;
 }
-.input { flex: 1; }
+.input { flex: 1; min-width: 280px; }
 .select { width: 140px; }
-.btn { border: none; border-radius: 10px; padding: 10px 16px; background: #111827; color: #fff; cursor: pointer; }
+.btn {
+  border: none; border-radius: 10px; padding: 10px 16px; background: #111827; color: #fff; cursor: pointer;
+}
 .btn:disabled { opacity: .6; cursor: not-allowed; }
+.btn-secondary { background: #2563eb; }
 
 .alert-error { background: #fef2f2; color: #b91c1c; padding: 12px; border-radius: 10px; margin: 8px 0 6px; }
 
@@ -39,12 +42,12 @@ body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI
   box-shadow: 0 2px 12px rgba(17,24,39,0.06); background: #fff;
 }
 
-/* ===== 表格样式（固定布局避免跳动；不跨列） ===== */
+/* ===== 表格样式（固定布局防止跨列；单元格内部裁切） ===== */
 .u-table {
   border-collapse: separate; border-spacing: 0;
   font-size: 14px; color: #111827;
   min-width: 100%;
-  table-layout: fixed; /* 关键：配合 colgroup + 固定布局，避免内容挤到相邻列 */
+  table-layout: fixed;
 }
 
 .th, .td {
@@ -60,15 +63,15 @@ thead .th {
 
 .tr:hover .td { background: #fbfdff; }
 
-/* 长文本强制单行；但不跨列、不遮挡 —— 交给 .cell 裁切 */
+/* 长文本强制单行；不跨列，交由 .cell 裁切 */
 .nowrap { white-space: nowrap; }
 
-/* 单元格内部真正承载文本的容器：裁切 + 省略号，防止覆盖到后续单元格 */
+/* 单元格内部容器：裁切 + 省略号，防止覆盖相邻列 */
 .cell {
   width: 100%;
-  overflow: hidden;              /* 关键：截断 */
-  text-overflow: ellipsis;       /* 关键：省略号 */
-  white-space: nowrap;           /* 单行显示 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 表头：标签 + 拖拽手柄 */
@@ -77,7 +80,7 @@ thead .th {
   justify-content: space-between; gap: 10px;
 }
 
-/* 拖拽手柄（支持缩到非常窄） */
+/* 拖拽手柄（可缩到很窄） */
 .th-resizer {
   position: relative; width: 8px; cursor: col-resize; flex: 0 0 8px; height: 24px;
   margin-right: -6px; border-right: 2px solid transparent;
@@ -91,14 +94,3 @@ thead .th {
 .table-scroll::-webkit-scrollbar { height: 10px; }
 .table-scroll::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
 .table-scroll::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
-
-/* 次要按钮（下载用）：浅底边框、悬停微提亮） */
-.btn.btn-outline{
-  background:#fff;
-  color:var(--text);
-  border:1px solid #cbd5e1;
-}
-.btn.btn-outline:hover{
-  box-shadow:var(--shadow);
-  border-color:#94a3b8;
-}

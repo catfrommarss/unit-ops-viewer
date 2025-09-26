@@ -1,8 +1,24 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 
+/** ====== 工具 & 显示辅助 ====== */
 const ASSET_DECIMALS = { btc: 8, eth: 18, sol: 9 };
+function humanAmount(asset, raw) {
+  if (!raw) return '';
+  const a = (asset || '').toLowerCase();
+  const d = ASSET_DECIMALS[a] ?? 6;
+  try {
+    const n = BigInt(raw);
+    const base = BigInt(10) ** BigInt(d);
+    const int = n / base;
+    const fracRaw = (n % base).toString().padStart(d, '0').replace(/0+$/, '');
+    return fracRaw ? `${int}.${fracRaw}` : `${int}`;
+  } catch {
+    return raw;
+  }
+}
+
 const STATE_COLOR = {
   sourceTxDiscovered: '#6b7280',
   waitForSrcTxFinalization: '#0891b2',
@@ -16,71 +32,34 @@ const STATE_COLOR = {
   failure: '#dc2626'
 };
 
-function humanAmount(asset, raw) {
-  if (!raw) return '';
-  const a = (asset || '').toLowerCase();
-  const d = ASSET_DECIMALS[a] ?? 6;
-  try {
-    const n = BigInt(raw);
-    const base = BigInt(10) ** BigInt(d);
-    const int = n / base;
-    const frac = (n % base).toString().padStart(d, '0').replace(/0+$/, '');
-    return frac ? `${int}.${frac}` : `${int}`;
-  } catch { return raw; }
+function Badge({ color, text }) {
+  return <span className="badge" style={{ background: color }}>{text}</span>;
 }
 
-function badge(color, text) { return <span className="badge" style={{ background: color }}>{text}</span>; }
-
 function useQueryParams() {
-  const [q, setQ] = useState(() => new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''));
-  useEffect(() => { setQ(new URLSearchParams(window.location.search)); }, []);
+  const [q, setQ] = useState(
+    () => new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+  );
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    setQ(sp);
+  }, []);
   return q;
 }
 
-/** 单击复制（单行全量显示） */
-function CopyCell({ text }) {
-  const [copied, setCopied] = useState(false);
-  async function onCopy() {
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true); setTimeout(() => setCopied(false), 1200);
-    } catch {}
-  }
-  return (
-    <div className="mono nowrap copyable" onClick={onCopy} title="单击复制">
-      {text || '-'}
-      {copied && <span className="copied-badge">已复制</span>}
-    </div>
-  );
-}
-
-/** 导出 CSV */
-function toCSV(ops) {
-  const header = [
-    '时间','资产','链路','金额',
-    '来源地址','目的地址','状态','源Tx','目的Tx'
-  ];
-  const esc = (v) => {
-    if (v === undefined || v === null) return '';
-    const s = String(v);
-    // 如果包含逗号/引号/换行，用双引号包裹并转义引号
-    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const rows = ops.map(op => [
-    op.opCreatedAt ? new Date(op.opCreatedAt).toLocaleString() : '',
-    (op.asset || '').toUpperCase(),
-    `${op.sourceChain} -> ${op.destinationChain}`,
-    `${humanAmount(op.asset, op.sourceAmount)} ${(op.asset || '').toUpperCase()}`,
-    op.sourceAddress || '',
-    op.destinationAddress || '',
-    op.state || '',
-    op.sourceTxHash || '',
-    op.destinationTxHash || ''
-  ].map(esc).join(','));
-  // 加 BOM 让 Excel 直接识别 UTF-8
-  return '\ufeff' + [header.join(','), ...rows].join('\r\n');
-}
+/** ====== 列配置（去掉 协议地址/费用；min=40，像 Excel 一样可缩得很窄） ====== */
+const MIN_COL = 40;
+const COLUMN_DEFS = [
+  { key: 'time', label: '时间', min: MIN_COL, init: 160 },
+  { key: 'asset', label: '资产', min: MIN_COL, init: 90 },
+  { key: 'route', label: '路径', min: MIN_COL, init: 140 },
+  { key: 'state', label: '状态', min: MIN_COL, init: 120 },
+  { key: 'amount', label: '金额', min: MIN_COL, init: 160 },
+  { key: 'sourceAddress', label: '来源地址', min: MIN_COL, init: 480, mono: true, forceOneLine: true, tooltip: true },
+  { key: 'destinationAddress', label: '目的地址', min: MIN_COL, init: 480, mono: true, forceOneLine: true, tooltip: true },
+  { key: 'sourceTxHash', label: '源Tx', min: MIN_COL, init: 560, mono: true, forceOneLine: true, tooltip: true },
+  { key: 'destinationTxHash', label: '目的Tx', min: MIN_COL, init: 560, mono: true, forceOneLine: true, tooltip: true },
+];
 
 export default function Page() {
   const q = useQueryParams();
@@ -90,7 +69,15 @@ export default function Page() {
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
 
-  // 同步 URL，便于分享
+  // 列宽状态
+  const [colWidths, setColWidths] = useState(() =>
+    COLUMN_DEFS.reduce((acc, c) => { acc[c.key] = c.init; return acc; }, {})
+  );
+
+  // 拖拽状态
+  const dragRef = useRef({ activeKey: null, startX: 0, startW: 0 });
+
+  // 同步 URL
   useEffect(() => {
     const sp = new URLSearchParams();
     if (address) sp.set('address', address);
@@ -101,105 +88,225 @@ export default function Page() {
 
   const ops = useMemo(() => {
     if (!data?.operations) return [];
-    return [...data.operations].sort((a, b) => Date.parse(b.opCreatedAt||0) - Date.parse(a.opCreatedAt||0));
+    return [...data.operations].sort((a, b) => {
+      const ta = Date.parse(a.opCreatedAt || 0);
+      const tb = Date.parse(b.opCreatedAt || 0);
+      return tb - ta;
+    });
   }, [data]);
 
   async function fetchOps() {
-    setLoading(true); setError(''); setData(null);
+    if (!address) return;
+    setLoading(true);
+    setError('');
+    setData(null);
     try {
       const res = await fetch(`/api/operations?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`);
       const json = await res.json();
-      if (!res.ok) setError(json?.error || `HTTP ${res.status}`); else setData(json);
-    } catch (e) { setError(String(e)); }
-    finally { setLoading(false); }
+      if (!res.ok) {
+        setError(json?.error || `HTTP ${res.status}`);
+      } else {
+        setData(json);
+      }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
   }
 
-  // 下载 CSV
-  function downloadCSV() {
-    if (!ops.length) return;
-    const csv = toCSV(ops);
+  useEffect(() => {
+    if (address) fetchOps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** ====== 拖拽列宽（最小 40px） ====== */
+  const onDown = (key, e) => {
+    const th = e.currentTarget.parentElement; // <th>
+    const startW = th.getBoundingClientRect().width;
+    dragRef.current = { activeKey: key, startX: e.clientX, startW };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    e.preventDefault();
+  };
+
+  const onMove = useCallback((e) => {
+    const { activeKey, startX, startW } = dragRef.current;
+    if (!activeKey) return;
+    const delta = e.clientX - startX;
+    const def = COLUMN_DEFS.find(c => c.key === activeKey);
+    const newW = Math.max(def?.min ?? MIN_COL, Math.round(startW + delta));
+    setColWidths(prev => ({ ...prev, [activeKey]: newW }));
+  }, []);
+
+  const onUp = useCallback(() => {
+    dragRef.current = { activeKey: null, startX: 0, startW: 0 };
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }, [onMove]);
+
+  /** ====== 单元格内容渲染（长字段用 title 提示，避免跨列遮挡） ====== */
+  const renderCell = (op, key) => {
+    switch (key) {
+      case 'time':
+        return op.opCreatedAt ? new Date(op.opCreatedAt).toLocaleString() : '';
+      case 'asset':
+        return <Badge color="#111827" text={op.asset?.toUpperCase() || 'ASSET'} />;
+      case 'route':
+        return `${op.sourceChain} → ${op.destinationChain}`;
+      case 'state':
+        return <Badge color={STATE_COLOR[op.state] || '#4b5563'} text={op.state || ''} />;
+      case 'amount':
+        return `${humanAmount(op.asset, op.sourceAmount)} ${op.asset?.toUpperCase()}`;
+      case 'sourceAddress':
+        return op.sourceAddress || '';
+      case 'destinationAddress':
+        return op.destinationAddress || '-';
+      case 'sourceTxHash':
+        return op.sourceTxHash || '';
+      case 'destinationTxHash':
+        return op.destinationTxHash || '-';
+      default:
+        return '';
+    }
+  };
+
+  /** ====== 导出 CSV（当前列顺序 + 表内数据） ====== */
+  const downloadCSV = () => {
+    const headers = COLUMN_DEFS.map(c => c.label);
+    const rows = ops.map(op => COLUMN_DEFS.map(c => {
+      const val = renderPlain(op, c.key);
+      // 转义 CSV
+      const s = String(val ?? '');
+      const needQuote = /[",\n]/.test(s);
+      const escaped = s.replace(/"/g, '""');
+      return needQuote ? `"${escaped}"` : escaped;
+    }));
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const fname = `unit-operations_${(address||'address').slice(0,8)}_${network}_${Date.now()}.csv`;
     const a = document.createElement('a');
-    a.href = url; a.download = fname;
-    document.body.appendChild(a); a.click();
-    a.remove(); URL.revokeObjectURL(url);
+    a.href = url;
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    a.download = `unit-operations-${ts}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // 导出使用的“纯文本渲染”，与表格视觉一致
+  function renderPlain(op, key) {
+    switch (key) {
+      case 'time': return op.opCreatedAt ? new Date(op.opCreatedAt).toLocaleString() : '';
+      case 'asset': return (op.asset || '').toUpperCase();
+      case 'route': return `${op.sourceChain} → ${op.destinationChain}`;
+      case 'state': return op.state || '';
+      case 'amount': return `${humanAmount(op.asset, op.sourceAmount)} ${(op.asset || '').toUpperCase()}`;
+      case 'sourceAddress': return op.sourceAddress || '';
+      case 'destinationAddress': return op.destinationAddress || '-';
+      case 'sourceTxHash': return op.sourceTxHash || '';
+      case 'destinationTxHash': return op.destinationTxHash || '-';
+      default: return '';
+    }
   }
 
-  // 如果 URL 自带 address，首次自动查询
-  useEffect(() => { if (address) fetchOps(); /* eslint-disable-next-line */ }, []);
-
   return (
-    <main className="container">
-      <h1 className="h1">Unit Operations Viewer</h1>
-      <p className="sub">输入地址，查询该地址相关的 Deposit / Withdraw 操作（数据来源：Hyperunit API）。</p>
-
-      <div className="controls" style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        <input className="input" value={address} onChange={(e)=>setAddress(e.target.value.trim())}
-               placeholder="例如：0xa6f1Ef42D335Ec7CbfC39f57269c851568300132" style={{ flex:1, minWidth: 280 }}/>
-        <select className="select" value={network} onChange={(e)=>setNetwork(e.target.value)}>
-          <option value="mainnet">Mainnet</option>
-          <option value="testnet">Testnet</option>
-        </select>
-        <button onClick={fetchOps} disabled={!address||loading} className="btn">{loading?'查询中…':'查询'}</button>
-        <button onClick={downloadCSV} disabled={!ops.length} className="btn btn-outline" title={ops.length ? '下载当前结果为 CSV' : '没有可导出的数据'}>
-          下载表格（CSV）
-        </button>
-      </div>
-
-      {error && (
-        <div style={{background:'#fff',border:'1px solid #fecaca',color:'#b91c1c',padding:12,borderRadius:12,marginBottom:12,boxShadow:'0 3px 12px rgba(185,28,28,.06)'}}>
-          {error}
+    <main className="page-root">
+      <header className="page-header">
+        <h1>Unit Operations Viewer</h1>
+        <p className="sub">输入地址，查询该地址相关的 Deposit / Withdraw 操作。</p>
+        <div className="toolbar">
+          <input
+            value={address}
+            onChange={(e) => setAddress(e.target.value.trim())}
+            placeholder="例如：0xa6f1Ef42D335Ec7CbfC39f57269c851568300132"
+            className="input"
+          />
+          <select
+            value={network}
+            onChange={(e) => setNetwork(e.target.value)}
+            className="select"
+          >
+            <option value="mainnet">Mainnet</option>
+            <option value="testnet">Testnet</option>
+          </select>
+          <button onClick={fetchOps} disabled={!address || loading} className="btn">
+            {loading ? '查询中…' : '查询'}
+          </button>
+          <button onClick={downloadCSV} disabled={ops.length === 0} className="btn btn-secondary" title="导出当前表格为 CSV">
+            下载 CSV
+          </button>
         </div>
-      )}
 
-      {/* 注意：不再显示“协议地址”模块 */}
+        {error && <div className="alert-error">{error}</div>}
 
-      {ops.length>0 && (
-        <div className="table-wrap">
-          <table>
+        {data?.addresses?.length > 0 && (
+          <div className="proto-box">
+            <div className="proto-title"><strong>相关协议地址</strong></div>
+            <ul className="proto-list">
+              {data.addresses.map((a, i) => (
+                <li key={i}>
+                  [{a.sourceCoinType} → {a.destinationChain}]: <code className="mono">{a.address}</code>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </header>
+
+      <section className="table-wrap">
+        <div className="table-scroll" title="提示：按住表头右侧竖条可拖动列宽；悬停可看被省略的完整值；可下载 CSV">
+          <table className="u-table" style={{ tableLayout: 'fixed', width: '100%' }}>
+            <colgroup>
+              {COLUMN_DEFS.map(col => (
+                <col key={col.key} style={{ width: (colWidths[col.key] ?? col.init) + 'px' }} />
+              ))}
+            </colgroup>
             <thead>
               <tr>
-                <th style={{ minWidth: 180 }}>时间</th>
-                <th style={{ minWidth: 90 }}>资产</th>
-                <th style={{ minWidth: 160 }}>链路</th>
-                <th style={{ minWidth: 160 }}>金额</th>
-                {/* 四个长列：给足 minWidth，单行展示，不挤压 */}
-                <th style={{ minWidth: 720 }}>来源地址（单击复制）</th>
-                <th style={{ minWidth: 720 }}>目的地址（单击复制）</th>
-                <th style={{ minWidth: 130 }}>状态</th>
-                <th style={{ minWidth: 820 }}>源Tx（单击复制）</th>
-                <th style={{ minWidth: 820 }}>目的Tx（单击复制）</th>
+                {COLUMN_DEFS.map(col => (
+                  <th key={col.key} className="th">
+                    <div className="th-inner">
+                      <span className="th-label">{col.label}</span>
+                      <span
+                        className="th-resizer"
+                        onMouseDown={(e) => onDown(col.key, e)}
+                        title="拖拽调整列宽"
+                      />
+                    </div>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {ops.map((op, idx) => {
-                const color = STATE_COLOR[op.state] || '#4b5563';
-                return (
-                  <tr key={idx}>
-                    <td data-label="时间">{op.opCreatedAt?new Date(op.opCreatedAt).toLocaleString():''}</td>
-                    <td data-label="资产">{badge('#111827', op.asset?.toUpperCase() || 'ASSET')}</td>
-                    <td data-label="链路">{`${op.sourceChain} → ${op.destinationChain}`}</td>
-                    <td data-label="金额">{humanAmount(op.asset, op.sourceAmount)} {op.asset?.toUpperCase()}</td>
-
-                    {/* —— 四个长字段：单行全量展示 + 可复制 —— */}
-                    <td data-label="来源地址"><CopyCell text={op.sourceAddress}/></td>
-                    <td data-label="目的地址"><CopyCell text={op.destinationAddress}/></td>
-                    <td data-label="状态">{badge(color, op.state)}</td>
-                    <td data-label="源Tx"><CopyCell text={op.sourceTxHash}/></td>
-                    <td data-label="目的Tx"><CopyCell text={op.destinationTxHash}/></td>
-                  </tr>
-                );
-              })}
+              {!loading && ops.length === 0 && address && !error && (
+                <tr><td className="empty" colSpan={COLUMN_DEFS.length}>没有找到相关操作。</td></tr>
+              )}
+              {ops.map((op, idx) => (
+                <tr key={idx} className="tr">
+                  {COLUMN_DEFS.map(col => {
+                    const raw = renderCell(op, col.key);
+                    const classNames = [
+                      'td',
+                      col.mono ? 'mono' : '',
+                      col.forceOneLine ? 'nowrap' : '',
+                    ].join(' ');
+                    return (
+                      <td key={col.key} className={classNames}>
+                        {/* cell-inner 负责裁切，避免跨列遮挡；title 提供完整查看 */}
+                        <div className="cell" title={col.tooltip ? String(renderPlain(op, col.key)) : undefined}>
+                          {raw}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-      )}
-
-      {!loading && ops.length===0 && address && !error && (
-        <div style={{ color: 'var(--muted)', marginTop: 12 }}>没有找到相关操作。</div>
-      )}
+      </section>
     </main>
   );
 }
