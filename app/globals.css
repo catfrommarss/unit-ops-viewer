@@ -1,73 +1,24 @@
 /* app/globals.css */
-/* 强制浅色 */
+/* 强制走浅色模式 */
 :root { color-scheme: light; }
 
+/* 基础排版与白底 */
 html, body { height: 100%; }
 body {
   margin: 0;
-  background: #ffffff;          /* 白底 */
-  color: #111827;               /* 深灰文字 */
+  background: #ffffff;         /* 白色底 */
+  color: #111827;              /* 深灰文本 */
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
 }
 
-/* 统一组件小样式 */
+/* 链接与 code 小样式 */
 a { color: #2563eb; text-decoration: none; }
 code { background: #f3f4f6; border-radius: 4px; padding: 2px 4px; }
 
-/* 容器与按钮 */
-.container { max-width: 1180px; margin: 40px auto; padding: 0 16px; }
-.btn {
-  border: 1px solid #111827;
-  border-radius: 10px;
-  padding: 10px 16px;
-  background: #111827;
-  color: #fff;
-  cursor: pointer;
-  transition: transform .04s ease, opacity .2s ease;
-}
-.btn:disabled { opacity: .6; cursor: not-allowed; }
-.btn:active { transform: translateY(1px); }
+/* 表格样式（列表展示） */
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px 8px; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 14px; }
+th { font-weight: 600; background: #f9fafb; position: sticky; top: 0; }
 
-/* 表格美化 */
-.table-wrap {
-  overflow-x: auto;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  box-shadow: 0 6px 18px rgba(17,24,39,0.06);
-}
-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-th, td {
-  padding: 12px 10px;
-  border-bottom: 1px solid #eef2f7;
-  text-align: left;
-  font-size: 14px;
-  vertical-align: top;
-}
-thead th {
-  font-weight: 700;
-  color: #111827;
-  background: linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
-  position: sticky; top: 0; z-index: 1;
-}
-tbody tr:hover td { background: #fbfdff; }
-tbody tr:nth-child(even) td { background: #fcfcfd; }
-
-/* 芯片/状态 */
+/* 状态小圆角标签 */
 .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; color: #fff; font-size: 12px; line-height: 16px; }
-
-/* 等宽长串文本：允许自动换行显示完整内容 */
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 12.5px;
-  word-break: break-all;
-  white-space: pre-wrap;
-}
-
-/* 单击复制 */
-.copyable { cursor: copy; position: relative; padding-right: 56px; }
-.copied-badge {
-  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
-  background: #16a34a; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 9999px;
-  box-shadow: 0 4px 12px rgba(22,163,74,0.25);
-  opacity: .95;
-}

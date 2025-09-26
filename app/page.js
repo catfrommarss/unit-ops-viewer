@@ -2,7 +2,27 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-const ASSET_DECIMALS = { btc: 8, eth: 18, sol: 9 };
+const ASSET_DECIMALS = {
+  btc: 8,
+  eth: 18,
+  sol: 9
+};
+
+function humanAmount(asset, raw) {
+  if (!raw) return '';
+  const a = (asset || '').toLowerCase();
+  const d = ASSET_DECIMALS[a] ?? 6;
+  try {
+    const n = BigInt(raw);
+    const base = BigInt(10) ** BigInt(d);     // 纯 BigInt 幂，避免 10**18 的精度问题
+    const int = n / base;
+    const frac = (n % base).toString().padStart(d, '0').replace(/0+$/, '');
+    return frac ? `${int}.${frac}` : `${int}`;
+  } catch {
+    return raw;
+  }
+}
+
 const STATE_COLOR = {
   sourceTxDiscovered: '#6b7280',
   waitForSrcTxFinalization: '#0891b2',
@@ -16,50 +36,21 @@ const STATE_COLOR = {
   failure: '#dc2626'
 };
 
-function humanAmount(asset, raw) {
-  if (!raw) return '';
-  const a = (asset || '').toLowerCase();
-  const d = ASSET_DECIMALS[a] ?? 6;
-  try {
-    const n = BigInt(raw);
-    const base = BigInt(10) ** BigInt(d); // 纯 BigInt 幂
-    const int = n / base;
-    const frac = (n % base).toString().padStart(d, '0').replace(/0+$/, '');
-    return frac ? `${int}.${frac}` : `${int}`;
-  } catch {
-    return raw;
-  }
-}
-
 function badge(color, text) {
   return <span className="badge" style={{ background: color }}>{text}</span>;
 }
 
-function useQueryParams() {
-  const [q, setQ] = useState(() => new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''));
-  useEffect(() => { setQ(new URLSearchParams(window.location.search)); }, []);
-  return q;
+function short(s) {
+  return s ? `${s.slice(0, 6)}…${s.slice(-4)}` : '-';
 }
 
-/** 单击复制的通用单元格 */
-function CopyCell({ text }) {
-  const [copied, setCopied] = useState(false);
-  async function onCopy() {
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
-    } catch (e) {
-      // 忽略
-    }
-  }
-  return (
-    <div className="mono copyable" onClick={onCopy} title="单击复制">
-      {text || '-'}
-      {copied && <span className="copied-badge">已复制</span>}
-    </div>
-  );
+function useQueryParams() {
+  const [q, setQ] = useState(() => new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''));
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    setQ(sp);
+  }, []);
+  return q;
 }
 
 export default function Page() {
@@ -70,7 +61,7 @@ export default function Page() {
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
 
-  // 同步到 URL 便于分享
+  // 同步 URL，便于分享
   useEffect(() => {
     const sp = new URLSearchParams();
     if (address) sp.set('address', address);
@@ -95,8 +86,11 @@ export default function Page() {
     try {
       const res = await fetch(`/api/operations?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`);
       const json = await res.json();
-      if (!res.ok) setError(json?.error || `HTTP ${res.status}`);
-      else setData(json);
+      if (!res.ok) {
+        setError(json?.error || `HTTP ${res.status}`);
+      } else {
+        setData(json);
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -104,16 +98,15 @@ export default function Page() {
     }
   }
 
-  // 如果 URL 自带 address，首次自动查询
   useEffect(() => {
     if (address) fetchOps();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <main className="container">
-      <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>Unit Operations Viewer</h1>
-      <p style={{ color: '#6b7280', margin: '8px 0 24px' }}>
+    <main style={{ maxWidth: 1100, margin: '40px auto', padding: '0 16px' }}>
+      <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 12 }}>Unit Operations Viewer</h1>
+      <p style={{ color: '#6b7280', marginBottom: 24 }}>
         输入地址，查询该地址相关的 Deposit / Withdraw 操作（数据来源：Hyperunit API）。
       </p>
 
@@ -122,23 +115,35 @@ export default function Page() {
           value={address}
           onChange={(e) => setAddress(e.target.value.trim())}
           placeholder="例如：0xa6f1Ef42D335Ec7CbfC39f57269c851568300132"
-          style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: 10, padding: '10px 12px', background: '#ffffff' }}
+          style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 12px', background: '#ffffff' }}
         />
         <select
           value={network}
           onChange={(e) => setNetwork(e.target.value)}
-          style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: '10px 12px', background: '#ffffff' }}
+          style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 12px', background: '#ffffff' }}
         >
           <option value="mainnet">Mainnet</option>
           <option value="testnet">Testnet</option>
         </select>
-        <button onClick={fetchOps} disabled={!address || loading} className="btn">
+        <button
+          onClick={fetchOps}
+          disabled={!address || loading}
+          style={{
+            border: '1px solid #111827',
+            borderRadius: 8,
+            padding: '10px 16px',
+            background: '#111827',
+            color: '#fff',
+            cursor: 'pointer',
+            opacity: !address || loading ? 0.6 : 1
+          }}
+        >
           {loading ? '查询中…' : '查询'}
         </button>
       </div>
 
       {error && (
-        <div style={{ background: '#fef2f2', color: '#b91c1c', padding: 12, borderRadius: 10, marginBottom: 12 }}>
+        <div style={{ background: '#fef2f2', color: '#b91c1c', padding: 12, borderRadius: 8, marginBottom: 12 }}>
           {error}
         </div>
       )}
@@ -150,29 +155,29 @@ export default function Page() {
           <ul style={{ margin: 0, paddingLeft: 18 }}>
             {data.addresses.map((a, i) => (
               <li key={i} style={{ marginBottom: 4 }}>
-                [{a.sourceCoinType} → {a.destinationChain}]: <code className="mono">{a.address}</code>
+                [{a.sourceCoinType} → {a.destinationChain}]: <code>{a.address}</code>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      {/* 列表展示（全量显示 + 单击复制） */}
+      {/* 列表（表格）展示 */}
       {ops.length > 0 && (
-        <div className="table-wrap">
+        <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 12 }}>
           <table>
             <thead>
               <tr>
-                <th style={{ minWidth: 180 }}>时间</th>
-                <th style={{ minWidth: 90 }}>资产</th>
-                <th style={{ minWidth: 160 }}>链路</th>
-                <th style={{ minWidth: 160 }}>金额</th>
-                <th style={{ minWidth: 150 }}>目的链费用</th>
-                <th style={{ minWidth: 360 }}>来源地址</th>
-                <th style={{ minWidth: 360 }}>目的地址</th>
-                <th style={{ minWidth: 130 }}>状态</th>
-                <th style={{ minWidth: 380 }}>源Tx</th>
-                <th style={{ minWidth: 380 }}>目的Tx</th>
+                <th style={{ minWidth: 160 }}>时间</th>
+                <th style={{ minWidth: 80 }}>资产</th>
+                <th style={{ minWidth: 150 }}>链路</th>
+                <th style={{ minWidth: 150 }}>金额</th>
+                <th style={{ minWidth: 120 }}>目的链费用</th>
+                <th style={{ minWidth: 160 }}>来源地址</th>
+                <th style={{ minWidth: 160 }}>目的地址</th>
+                <th style={{ minWidth: 120 }}>状态</th>
+                <th style={{ minWidth: 140 }}>源Tx</th>
+                <th style={{ minWidth: 140 }}>目的Tx</th>
               </tr>
             </thead>
             <tbody>
@@ -185,11 +190,11 @@ export default function Page() {
                     <td>{`${op.sourceChain} → ${op.destinationChain}`}</td>
                     <td>{humanAmount(op.asset, op.sourceAmount)} {op.asset?.toUpperCase()}</td>
                     <td>{op.destinationFeeAmount ? humanAmount(op.asset, op.destinationFeeAmount) : '-'}</td>
-                    <td><CopyCell text={op.sourceAddress} /></td>
-                    <td><CopyCell text={op.destinationAddress} /></td>
+                    <td><code>{short(op.sourceAddress)}</code></td>
+                    <td><code>{op.destinationAddress ? short(op.destinationAddress) : '-'}</code></td>
                     <td>{badge(color, op.state)}</td>
-                    <td><CopyCell text={op.sourceTxHash} /></td>
-                    <td><CopyCell text={op.destinationTxHash} /></td>
+                    <td><code>{short(op.sourceTxHash)}</code></td>
+                    <td><code>{op.destinationTxHash ? short(op.destinationTxHash) : '-'}</code></td>
                   </tr>
                 );
               })}
