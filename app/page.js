@@ -63,6 +63,7 @@ export default function Page() {
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
 
+  // 同步 URL，便于分享
   useEffect(() => {
     const sp = new URLSearchParams();
     if (address) sp.set('address', address);
@@ -86,6 +87,7 @@ export default function Page() {
     finally { setLoading(false); }
   }
 
+  // 如果 URL 自带 address，首次自动查询
   useEffect(() => { if (address) fetchOps(); /* eslint-disable-next-line */ }, []);
 
   return (
@@ -130,12 +132,12 @@ export default function Page() {
                 <th style={{ minWidth: 160 }}>链路</th>
                 <th style={{ minWidth: 160 }}>金额</th>
                 <th style={{ minWidth: 150 }}>目的链费用</th>
-                {/* 加宽四列，配合 nowrap + table-layout:auto，整表横向滚动 */}
-                <th style={{ minWidth: 720 }}>来源地址（单击复制）</th>
-                <th style={{ minWidth: 720 }}>目的地址（单击复制）</th>
+                {/* 四个长列：给足 minWidth，单行展示，不挤压 */}
+                <th style={{ minWidth: 720 }}>来源地址</th>
+                <th style={{ minWidth: 720 }}>目的地址</th>
                 <th style={{ minWidth: 130 }}>状态</th>
-                <th style={{ minWidth: 820 }}>源Tx（单击复制）</th>
-                <th style={{ minWidth: 820 }}>目的Tx（单击复制）</th>
+                <th style={{ minWidth: 820 }}>源Tx</th>
+                <th style={{ minWidth: 820 }}>目的Tx</th>
               </tr>
             </thead>
             <tbody>

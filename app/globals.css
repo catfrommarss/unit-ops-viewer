@@ -1,5 +1,5 @@
 /* app/globals.css */
-/* —— 主题（保留高级和谐渐变 + 柔和阴影） —— */
+/* —— 主题（和谐渐变 + 柔和阴影） —— */
 :root{
   --bg-start:#f7f9fc;
   --bg-end:#eef2ff;
@@ -95,10 +95,11 @@ tbody tr:nth-child(even) td{background:#fcfcfd;}
 .nowrap{
   white-space: nowrap !important;      /* 单行 */
   word-break: normal !important;       /* 不拆词 */
-  overflow-x: auto;                    /* 超出横向滚动（容器或整表） */
+  overflow-x: auto;                    /* 超出横向滚动 */
   -webkit-overflow-scrolling: touch;
   max-width: 100%;
   display: block;
+  hyphens: none;                        /* 禁止自动断字 */
 }
 
 /* 单击复制 */
