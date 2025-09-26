@@ -1,44 +1,23 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-const ASSET_DECIMALS = {
-  btc: 8,
-  eth: 18,
-  sol: 9
-};
+/** ========================= 工具函数 ========================= */
+const ASSET_DECIMALS = { btc: 8, eth: 18, sol: 9 };
 
 function humanAmount(asset, raw) {
-  if (!raw) return '';
+  if (!raw && raw !== 0) return '';
   const a = (asset || '').toLowerCase();
-  const d = ASSET_DECIMALS[a] ?? 6; // 兜底
+  const d = ASSET_DECIMALS[a] ?? 6;
   try {
     const n = BigInt(raw);
-    const int = n / BigInt(10 ** d);
-    const frac = (n % BigInt(10 ** d)).toString().padStart(d, '0').replace(/0+$/, '');
+    const base = BigInt(10) ** BigInt(d);
+    const int = n / base;
+    const frac = (n % base).toString().padStart(d, '0').replace(/0+$/, '');
     return frac ? `${int}.${frac}` : `${int}`;
   } catch {
-    return raw;
+    return String(raw);
   }
-}
-
-function badge(color, text) {
-  return (
-    <span
-      style={{
-        display: 'inline-block',
-        padding: '2px 8px',
-        borderRadius: 999,
-        background: color,
-        color: '#fff',
-        fontSize: 12,
-        lineHeight: '16px',
-        marginRight: 6
-      }}
-    >
-      {text}
-    </span>
-  );
 }
 
 const STATE_COLOR = {
@@ -54,6 +33,17 @@ const STATE_COLOR = {
   failure: '#dc2626'
 };
 
+function Badge({ color = '#111827', children }) {
+  return (
+    <span
+      className="badge"
+      style={{ background: color }}
+    >
+      {children}
+    </span>
+  );
+}
+
 function useQueryParams() {
   const [q, setQ] = useState(() => new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''));
   useEffect(() => {
@@ -63,6 +53,43 @@ function useQueryParams() {
   return q;
 }
 
+/** ================ 可拖动列宽 Hook ================= */
+function useResizableColumns(initial) {
+  const [widths, setWidths] = useState(initial);
+  const dragging = useRef(null); // { key, startX, startWidth }
+
+  useEffect(() => {
+    function onMove(e) {
+      if (!dragging.current) return;
+      const { key, startX, startWidth } = dragging.current;
+      const delta = e.clientX - startX;
+      const next = Math.max(80, startWidth + delta); // 每列最小80px，避免挤没
+      setWidths((w) => ({ ...w, [key]: next }));
+    }
+    function onUp() {
+      dragging.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  function startDrag(e, key) {
+    const startWidth = widths[key] ?? 160;
+    dragging.current = { key, startX: e.clientX, startWidth };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }
+
+  return { widths, startDrag, setWidths };
+}
+
+/** ========================= 页面组件 ========================= */
 export default function Page() {
   const q = useQueryParams();
   const [address, setAddress] = useState(q.get('address') || '');
@@ -71,7 +98,35 @@ export default function Page() {
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
 
-  // 同步 URL，方便分享链接
+  // 列定义（顺序即表头顺序）
+  const columns = [
+    { key: 'time', title: '时间' },
+    { key: 'asset', title: '资产' },
+    { key: 'chains', title: '链路' },
+    { key: 'state', title: '状态' },
+    { key: 'amount', title: '金额' },
+    { key: 'sourceAddress', title: '来源地址', forceOneLine: true },
+    { key: 'destinationAddress', title: '目的地址', forceOneLine: true },
+    { key: 'protocolAddress', title: '协议地址', forceOneLine: true },
+    { key: 'sourceTxHash', title: '源Tx', forceOneLine: true },
+    { key: 'destinationTxHash', title: '目的Tx', forceOneLine: true }
+  ];
+
+  // 初始列宽（可根据需要调整）
+  const { widths, startDrag } = useResizableColumns({
+    time: 160,
+    asset: 100,
+    chains: 140,
+    state: 120,
+    amount: 160,
+    sourceAddress: 420,
+    destinationAddress: 420,
+    protocolAddress: 420,
+    sourceTxHash: 520,
+    destinationTxHash: 520
+  });
+
+  // 同步 URL（便于分享）
   useEffect(() => {
     const sp = new URLSearchParams();
     if (address) sp.set('address', address);
@@ -82,7 +137,6 @@ export default function Page() {
 
   const ops = useMemo(() => {
     if (!data?.operations) return [];
-    // 按 opCreatedAt 倒序
     return [...data.operations].sort((a, b) => {
       const ta = Date.parse(a.opCreatedAt || 0);
       const tb = Date.parse(b.opCreatedAt || 0);
@@ -95,7 +149,9 @@ export default function Page() {
     setError('');
     setData(null);
     try {
-      const res = await fetch(`/api/operations?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`);
+      const res = await fetch(
+        `/api/operations?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`
+      );
       const json = await res.json();
       if (!res.ok) {
         setError(json?.error || `HTTP ${res.status}`);
@@ -109,30 +165,30 @@ export default function Page() {
     }
   }
 
-  // 如果 URL 自带了 address，自动加载一次
+  // 如果 URL 自带 address，第一次自动加载
   useEffect(() => {
     if (address) fetchOps();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <main style={{ maxWidth: 960, margin: '40px auto', padding: '0 16px', fontFamily: 'ui-sans-serif, system-ui' }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 12 }}>Unit Operations Viewer</h1>
-      <p style={{ color: '#6b7280', marginBottom: 24 }}>
+    <main className="container">
+      <h1 className="title">Unit Operations Viewer</h1>
+      <p className="sub">
         输入 Hyperliquid / EVM 地址，查询该地址相关的 Deposit / Withdraw 操作（数据来源：Hyperunit API）。
       </p>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div className="toolbar">
         <input
           value={address}
           onChange={(e) => setAddress(e.target.value.trim())}
           placeholder="例如：0xa6f1Ef42D335Ec7CbfC39f57269c851568300132"
-          style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 12px' }}
+          className="input"
         />
         <select
           value={network}
           onChange={(e) => setNetwork(e.target.value)}
-          style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 12px' }}
+          className="select"
         >
           <option value="mainnet">Mainnet</option>
           <option value="testnet">Testnet</option>
@@ -140,77 +196,106 @@ export default function Page() {
         <button
           onClick={fetchOps}
           disabled={!address || loading}
-          style={{
-            border: 'none',
-            borderRadius: 8,
-            padding: '10px 16px',
-            background: '#111827',
-            color: '#fff',
-            cursor: 'pointer',
-            opacity: !address || loading ? 0.6 : 1
-          }}
+          className="btn"
         >
           {loading ? '查询中…' : '查询'}
         </button>
       </div>
 
       {error && (
-        <div style={{ background: '#fef2f2', color: '#b91c1c', padding: 12, borderRadius: 8, marginBottom: 12 }}>
-          {error}
-        </div>
+        <div className="alert error">{error}</div>
       )}
 
       {data?.addresses?.length > 0 && (
-        <div style={{ marginBottom: 16, fontSize: 14, color: '#374151' }}>
-          <div style={{ marginBottom: 6 }}><strong>相关协议地址（protocol addresses）</strong></div>
-          <ul style={{ margin: 0, paddingLeft: 18 }}>
+        <div className="proto-box">
+          <div className="proto-title"><strong>相关协议地址（protocol addresses）</strong></div>
+          <ul className="proto-list">
             {data.addresses.map((a, i) => (
-              <li key={i} style={{ marginBottom: 4 }}>
-                [{a.sourceCoinType} → {a.destinationChain}]: <code>{a.address}</code>
+              <li key={i}>
+                [{a.sourceCoinType} → {a.destinationChain}]: <code className="mono">{a.address}</code>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      <div style={{ display: 'grid', gap: 12 }}>
-        {ops.map((op, idx) => {
-          const color = STATE_COLOR[op.state] || '#4b5563';
-          return (
-            <div key={idx} style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                <div>
-                  {badge('#111827', op.asset?.toUpperCase() || 'ASSET')}
-                  {badge('#4b5563', `${op.sourceChain} → ${op.destinationChain}`)}
-                  {badge(color, op.state)}
+      {/* 表格区域 */}
+      <div className="table-wrap">
+        <div className="table" role="table">
+          {/* 表头 */}
+          <div className="thead" role="rowgroup">
+            <div className="tr" role="row">
+              {columns.map((col) => (
+                <div
+                  key={col.key}
+                  role="columnheader"
+                  className="th"
+                  style={{ width: widths[col.key] }}
+                >
+                  <span className="th-text">{col.title}</span>
+                  <span
+                    className="col-resizer"
+                    onMouseDown={(e) => startDrag(e, col.key)}
+                    title="拖动调整列宽"
+                  />
                 </div>
-                <div style={{ color: '#6b7280', fontSize: 12 }}>
-                  {op.opCreatedAt ? new Date(op.opCreatedAt).toLocaleString() : ''}
-                </div>
-              </div>
-
-              <div style={{ marginTop: 8, fontSize: 14, color: '#111827' }}>
-                <div><strong>金额</strong>：{humanAmount(op.asset, op.sourceAmount)} {op.asset?.toUpperCase()}</div>
-                {!!op.destinationFeeAmount && <div>目的链费用：{humanAmount(op.asset, op.destinationFeeAmount)}</div>}
-                {!!op.sweepFeeAmount && <div>Sweep 费用：{op.sweepFeeAmount}</div>}
-                <div style={{ marginTop: 6, color: '#374151' }}>
-                  <div>来源地址：<code>{op.sourceAddress}</code></div>
-                  <div>目的地址：<code>{op.destinationAddress || '-'}</code></div>
-                  <div>协议地址：<code>{op.protocolAddress}</code></div>
-                </div>
-                <div style={{ marginTop: 6, color: '#374151' }}>
-                  <div>源链 Tx：<code>{op.sourceTxHash}</code></div>
-                  <div>目的链 Tx：<code>{op.destinationTxHash || '-'}</code></div>
-                </div>
-              </div>
+              ))}
             </div>
-          );
-        })}
-      </div>
+          </div>
 
-      {!loading && ops.length === 0 && address && !error && (
-        <div style={{ color: '#6b7280', marginTop: 12 }}>没有找到相关操作。</div>
-      )}
+          {/* 表体 */}
+          <div className="tbody" role="rowgroup">
+            {ops.map((op, idx) => {
+              const color = STATE_COLOR[op.state] || '#4b5563';
+              const time = op.opCreatedAt ? new Date(op.opCreatedAt).toLocaleString() : '';
+              const chains = `${op.sourceChain} → ${op.destinationChain}`;
+              const amount = `${humanAmount(op.asset, op.sourceAmount)} ${op.asset?.toUpperCase() || ''}`;
+              return (
+                <div className="tr row-hover" role="row" key={idx}>
+                  <div className="td" style={{ width: widths.time }}>
+                    <span className="mono nowrap">{time}</span>
+                  </div>
+                  <div className="td" style={{ width: widths.asset }}>
+                    <Badge>{op.asset?.toUpperCase() || 'ASSET'}</Badge>
+                  </div>
+                  <div className="td" style={{ width: widths.chains }}>
+                    <span className="mono nowrap">{chains}</span>
+                  </div>
+                  <div className="td" style={{ width: widths.state }}>
+                    <Badge color={color}>{op.state}</Badge>
+                  </div>
+                  <div className="td" style={{ width: widths.amount }}>
+                    <span className="mono nowrap">{amount}</span>
+                  </div>
+                  <div className="td" style={{ width: widths.sourceAddress }}>
+                    <span className="mono nowrap">{op.sourceAddress}</span>
+                  </div>
+                  <div className="td" style={{ width: widths.destinationAddress }}>
+                    <span className="mono nowrap">{op.destinationAddress || '-'}</span>
+                  </div>
+                  <div className="td" style={{ width: widths.protocolAddress }}>
+                    <span className="mono nowrap">{op.protocolAddress}</span>
+                  </div>
+                  <div className="td" style={{ width: widths.sourceTxHash }}>
+                    <span className="mono nowrap">{op.sourceTxHash}</span>
+                  </div>
+                  <div className="td" style={{ width: widths.destinationTxHash }}>
+                    <span className="mono nowrap">{op.destinationTxHash || '-'}</span>
+                  </div>
+                </div>
+              );
+            })}
+
+            {!loading && ops.length === 0 && address && !error && (
+              <div className="tr empty" role="row">
+                <div className="td" style={{ width: '100%' }}>
+                  没有找到相关操作。
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

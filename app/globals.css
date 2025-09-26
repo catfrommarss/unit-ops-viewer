@@ -1,5 +1,117 @@
 /* app/globals.css */
-:root { color-scheme: light ; }
+:root { color-scheme: light; }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
-body { margin: 0; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; color: #0f172a; background: #f8fafc; }
+
+/* 布局与标题 */
+.container { max-width: 1200px; margin: 40px auto; padding: 0 16px; }
+.title { font-size: 28px; font-weight: 800; margin: 0 0 8px; }
+.sub { color: #64748b; margin: 0 0 20px; }
+
+/* 控件 */
+.toolbar { display: flex; gap: 8px; margin-bottom: 14px; }
+.input, .select {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  outline: none;
+}
+.input:focus, .select:focus { border-color: #94a3b8; box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.25); }
+.btn {
+  border: none; border-radius: 10px; padding: 10px 16px;
+  background: #111827; color: #fff; cursor: pointer;
+}
+.btn:disabled { opacity: .6; cursor: not-allowed; }
+
+/* 提示 */
+.alert { border-radius: 12px; padding: 12px; margin: 10px 0; font-size: 14px; }
+.alert.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
+/* 协议地址块 */
+.proto-box {
+  margin: 12px 0 16px;
+  font-size: 14px; color: #334155;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 4px 14px rgba(2,6,23,.06);
+}
+.proto-title { margin-bottom: 6px; }
+.proto-list { margin: 0; padding-left: 18px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+/* 徽章 */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 18px;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+/* 表格容器（横向滚动 + 阴影 + 柔和边框） */
+.table-wrap {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(2,6,23,.08);
+}
+
+/* 让宽表可横向滚动查看长地址/Tx */
+.table {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* 利用“行式网格”模拟表格，便于自定义列宽 */
+.thead, .tbody { display: block; }
+.tr { display: flex; }
+.th, .td {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-right: 1px solid #e5e7eb;
+  position: relative; /* 允许放置拖拽句柄 */
+  background: #fff;
+}
+.th:last-child, .td:last-child { border-right: none; }
+.th {
+  font-weight: 700;
+  color: #0f172a;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  user-select: none;
+}
+.tbody .tr:not(.empty) .td {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* 行高亮与悬停效果 */
+.row-hover:hover .td { background: #f8fafc; }
+.row-hover:hover { box-shadow: inset 0 0 0 9999px rgba(2,6,23,.02); }
+
+/* 拖拽列宽的手柄 */
+.col-resizer {
+  position: absolute;
+  top: 0; right: 0; height: 100%;
+  width: 8px;
+  cursor: col-resize;
+  background: transparent;
+}
+.col-resizer:hover { background: rgba(99,102,241,0.12); } /* 轻微可视化提示 */
+
+/* 单行强制不换行（地址/Tx 等长文本） */
+.nowrap { white-space: nowrap; }
+
+/* 让长文本本身不被打断；显示完整靠“拖拽加宽列 + 横向滚动” */
+.th-text, .td > span { overflow: visible; }
+
+/* 空状态 */
+.empty .td { color: #64748b; }
