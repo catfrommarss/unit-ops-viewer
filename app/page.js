@@ -14,7 +14,7 @@ function humanAmount(asset, raw) {
   const d = ASSET_DECIMALS[a] ?? 6;
   try {
     const n = BigInt(raw);
-    const base = BigInt(10) ** BigInt(d);     // 纯 BigInt 幂，避免 10**18 的精度问题
+    const base = BigInt(10) ** BigInt(d);
     const int = n / base;
     const frac = (n % base).toString().padStart(d, '0').replace(/0+$/, '');
     return frac ? `${int}.${frac}` : `${int}`;
@@ -40,8 +40,13 @@ function badge(color, text) {
   return <span className="badge" style={{ background: color }}>{text}</span>;
 }
 
-function short(s) {
-  return s ? `${s.slice(0, 6)}…${s.slice(-4)}` : '-';
+function getExplorerUrl(chain, txHash) {
+  if (!txHash) return null;
+  const lower = (chain || '').toLowerCase();
+  if (lower.includes('eth')) return `https://etherscan.io/tx/${txHash}`;
+  if (lower.includes('sol')) return `https://solscan.io/tx/${txHash}`;
+  if (lower.includes('btc')) return `https://www.blockchain.com/btc/tx/${txHash}`;
+  return null;
 }
 
 function useQueryParams() {
@@ -61,7 +66,6 @@ export default function Page() {
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
 
-  // 同步 URL，便于分享
   useEffect(() => {
     const sp = new URLSearchParams();
     if (address) sp.set('address', address);
@@ -100,8 +104,50 @@ export default function Page() {
 
   useEffect(() => {
     if (address) fetchOps();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function downloadCSV() {
+    if (!ops.length) return;
+
+    const headers = [
+      '时间',
+      '资产',
+      '链路',
+      '金额',
+      '目的链费用',
+      '来源地址',
+      '目的地址',
+      '状态',
+      '源Tx',
+      '目的Tx'
+    ];
+
+    const rows = ops.map(op => [
+      new Date(op.opCreatedAt).toLocaleString(),
+      op.asset?.toUpperCase() || '',
+      `${op.sourceChain} → ${op.destinationChain}`,
+      humanAmount(op.asset, op.sourceAmount),
+      op.destinationFeeAmount ? humanAmount(op.asset, op.destinationFeeAmount) : '',
+      op.sourceAddress || '',
+      op.destinationAddress || '',
+      op.state,
+      op.sourceTxHash || '',
+      op.destinationTxHash || ''
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${(cell || '').replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'unit_operations.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 
   return (
     <main style={{ maxWidth: 1100, margin: '40px auto', padding: '0 16px' }}>
@@ -110,12 +156,12 @@ export default function Page() {
         输入地址，查询该地址相关的 Deposit / Withdraw 操作（数据来源：Hyperunit API）。
       </p>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         <input
           value={address}
           onChange={(e) => setAddress(e.target.value.trim())}
           placeholder="例如：0xa6f1Ef42D335Ec7CbfC39f57269c851568300132"
-          style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 12px', background: '#ffffff' }}
+          style={{ flex: 1, minWidth: 240, border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 12px', background: '#ffffff' }}
         />
         <select
           value={network}
@@ -140,6 +186,21 @@ export default function Page() {
         >
           {loading ? '查询中…' : '查询'}
         </button>
+        <button
+          onClick={downloadCSV}
+          disabled={ops.length === 0}
+          style={{
+            border: '1px solid #374151',
+            borderRadius: 8,
+            padding: '10px 16px',
+            background: '#f3f4f6',
+            color: '#111827',
+            cursor: ops.length === 0 ? 'not-allowed' : 'pointer',
+            opacity: ops.length === 0 ? 0.5 : 1
+          }}
+        >
+          下载 CSV
+        </button>
       </div>
 
       {error && (
@@ -148,7 +209,6 @@ export default function Page() {
         </div>
       )}
 
-      {/* 协议地址（可选） */}
       {data?.addresses?.length > 0 && (
         <div style={{ marginBottom: 16, fontSize: 14, color: '#374151' }}>
           <div style={{ marginBottom: 6 }}><strong>相关协议地址（protocol addresses）</strong></div>
@@ -162,39 +222,48 @@ export default function Page() {
         </div>
       )}
 
-      {/* 列表（表格）展示 */}
       {ops.length > 0 && (
-        <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 12 }}>
+        <div className="table-container">
           <table>
             <thead>
               <tr>
-                <th style={{ minWidth: 160 }}>时间</th>
-                <th style={{ minWidth: 80 }}>资产</th>
-                <th style={{ minWidth: 150 }}>链路</th>
-                <th style={{ minWidth: 150 }}>金额</th>
-                <th style={{ minWidth: 120 }}>目的链费用</th>
-                <th style={{ minWidth: 160 }}>来源地址</th>
-                <th style={{ minWidth: 160 }}>目的地址</th>
-                <th style={{ minWidth: 120 }}>状态</th>
-                <th style={{ minWidth: 140 }}>源Tx</th>
-                <th style={{ minWidth: 140 }}>目的Tx</th>
+                <th>时间</th>
+                <th>资产</th>
+                <th>链路</th>
+                <th>金额</th>
+                <th>目的链费用</th>
+                <th>来源地址</th>
+                <th>目的地址</th>
+                <th>状态</th>
+                <th>源Tx</th>
+                <th>目的Tx</th>
               </tr>
             </thead>
             <tbody>
               {ops.map((op, idx) => {
                 const color = STATE_COLOR[op.state] || '#4b5563';
+                const sourceTxUrl = getExplorerUrl(op.sourceChain, op.sourceTxHash);
+                const destinationTxUrl = getExplorerUrl(op.destinationChain, op.destinationTxHash);
                 return (
                   <tr key={idx}>
-                    <td>{op.opCreatedAt ? new Date(op.opCreatedAt).toLocaleString() : ''}</td>
+                    <td className="time-cell">{op.opCreatedAt ? new Date(op.opCreatedAt).toLocaleString() : ''}</td>
                     <td>{badge('#111827', op.asset?.toUpperCase() || 'ASSET')}</td>
-                    <td>{`${op.sourceChain} → ${op.destinationChain}`}</td>
-                    <td>{humanAmount(op.asset, op.sourceAmount)} {op.asset?.toUpperCase()}</td>
+                    <td className="chain-cell">{`${op.sourceChain} → ${op.destinationChain}`}</td>
+                    <td className="amount-cell">{humanAmount(op.asset, op.sourceAmount)} {op.asset?.toUpperCase()}</td>
                     <td>{op.destinationFeeAmount ? humanAmount(op.asset, op.destinationFeeAmount) : '-'}</td>
-                    <td><code>{short(op.sourceAddress)}</code></td>
-                    <td><code>{op.destinationAddress ? short(op.destinationAddress) : '-'}</code></td>
+                    <td className="address-cell"><code>{op.sourceAddress || '-'}</code></td>
+                    <td className="address-cell"><code>{op.destinationAddress || '-'}</code></td>
                     <td>{badge(color, op.state)}</td>
-                    <td><code>{short(op.sourceTxHash)}</code></td>
-                    <td><code>{op.destinationTxHash ? short(op.destinationTxHash) : '-'}</code></td>
+                    <td className="tx-hash-cell">
+                      {sourceTxUrl ? (
+                        <a href={sourceTxUrl} target="_blank" rel="noopener noreferrer">{op.sourceTxHash}</a>
+                      ) : '-'}
+                    </td>
+                    <td className="tx-hash-cell">
+                      {destinationTxUrl ? (
+                        <a href={destinationTxUrl} target="_blank" rel="noopener noreferrer">{op.destinationTxHash}</a>
+                      ) : '-'}
+                    </td>
                   </tr>
                 );
               })}

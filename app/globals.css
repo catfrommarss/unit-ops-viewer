@@ -39,6 +39,7 @@ code {
   border-radius: 12px;
   background: #ffffff;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  margin-bottom: 24px;
 }
 
 table { 
@@ -143,7 +144,7 @@ tbody tr:last-child td {
     padding: 8px 6px;
     font-size: 12px;
   }
-  
+
   .address-cell, .tx-hash-cell {
     font-size: 11px;
     max-width: 120px;
