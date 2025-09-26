@@ -5,58 +5,21 @@ html, body { height: 100%; }
 body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
 
 /* ===== 布局 & 主题 ===== */
-.page-root {
-  max-width: 100%;
-  padding: 24px 20px 40px;
-}
+.page-root { max-width: 100%; padding: 24px 20px 40px; }
+.page-header h1 { font-size: 28px; font-weight: 800; margin: 0 0 8px; }
+.sub { color: #6b7280; margin: 0 0 16px; line-height: 1.4; }
 
-.page-header h1 {
-  font-size: 28px;
-  font-weight: 800;
-  margin: 0 0 8px;
-}
-
-.sub {
-  color: #6b7280;
-  margin: 0 0 16px;
-  line-height: 1.4;
-}
-
-.toolbar {
-  display: flex;
-  gap: 8px;
-  margin: 0 0 14px;
-}
-
+.toolbar { display: flex; gap: 8px; margin: 0 0 14px; }
 .input, .select {
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 10px 12px;
-  outline: none;
+  border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; outline: none;
 }
-
 .input { flex: 1; }
 .select { width: 140px; }
-
-.btn {
-  border: none;
-  border-radius: 10px;
-  padding: 10px 16px;
-  background: #111827;
-  color: #fff;
-  cursor: pointer;
-}
+.btn { border: none; border-radius: 10px; padding: 10px 16px; background: #111827; color: #fff; cursor: pointer; }
 .btn:disabled { opacity: .6; cursor: not-allowed; }
 
-.alert-error {
-  background: #fef2f2;
-  color: #b91c1c;
-  padding: 12px;
-  border-radius: 10px;
-  margin: 8px 0 6px;
-}
+.alert-error { background: #fef2f2; color: #b91c1c; padding: 12px; border-radius: 10px; margin: 8px 0 6px; }
 
-/* 协议地址块 */
 .proto-box { margin: 10px 0 6px; font-size: 14px; color: #374151; }
 .proto-title { margin-bottom: 6px; }
 .proto-list { margin: 0; padding-left: 18px; }
@@ -64,38 +27,24 @@ body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI
 
 /* ===== 徽章 ===== */
 .badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  color: #fff;
-  font-size: 12px;
-  line-height: 16px;
-  margin-right: 6px;
+  display: inline-block; padding: 2px 8px; border-radius: 999px; color: #fff;
+  font-size: 12px; line-height: 16px; margin-right: 6px;
 }
 
-/* ===== 表格（满宽 + 横向滚动） ===== */
-.table-wrap {
-  width: 100%;
-  overflow: hidden;
-}
-
+/* ===== 表格容器：满宽 + 横向滚动 ===== */
+.table-wrap { width: 100%; overflow: hidden; }
 .table-scroll {
-  width: 100%;
-  overflow-x: auto; /* 横向滚动承载所有长字段，保证“完整显示” */
-  overflow-y: hidden;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  box-shadow: 0 2px 12px rgba(17,24,39,0.06);
-  background: #fff;
+  width: 100%; overflow-x: auto; overflow-y: hidden;
+  border: 1px solid #e5e7eb; border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(17,24,39,0.06); background: #fff;
 }
 
-/* 更宽一些的默认列高/间距，读起来舒适 */
+/* ===== 表格样式（固定布局避免跳动；不跨列） ===== */
 .u-table {
-  border-collapse: separate;
-  border-spacing: 0;
-  font-size: 14px;
-  color: #111827;
-  min-width: 100%; /* 默认占满容器宽度 */
+  border-collapse: separate; border-spacing: 0;
+  font-size: 14px; color: #111827;
+  min-width: 100%;
+  table-layout: fixed; /* 关键：配合 colgroup + 固定布局，避免内容挤到相邻列 */
 }
 
 .th, .td {
@@ -105,59 +54,40 @@ body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI
 }
 
 thead .th {
-  position: sticky;
-  top: 0;
-  background: #f9fafb;
-  z-index: 1;
-  font-weight: 700;
-  color: #374151;
+  position: sticky; top: 0; background: #f9fafb; z-index: 1;
+  font-weight: 700; color: #374151;
 }
 
-.tr:hover .td {
-  background: #fbfdff;
-}
+.tr:hover .td { background: #fbfdff; }
 
-/* 让长文本强制单行 & 不截断（配合横向滚动完整显示） */
+/* 长文本强制单行；但不跨列、不遮挡 —— 交给 .cell 裁切 */
 .nowrap { white-space: nowrap; }
-.td.nowrap { overflow: visible; }
 
-/* 表头内部布局（标签 + 拖拽手柄） */
+/* 单元格内部真正承载文本的容器：裁切 + 省略号，防止覆盖到后续单元格 */
+.cell {
+  width: 100%;
+  overflow: hidden;              /* 关键：截断 */
+  text-overflow: ellipsis;       /* 关键：省略号 */
+  white-space: nowrap;           /* 单行显示 */
+}
+
+/* 表头：标签 + 拖拽手柄 */
 .th-inner {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  position: relative; display: flex; align-items: center;
+  justify-content: space-between; gap: 10px;
 }
 
-/* 拖拽手柄：点击并水平拖动调整当前列宽 */
+/* 拖拽手柄（支持缩到非常窄） */
 .th-resizer {
-  position: relative;
-  width: 8px;
-  cursor: col-resize;
-  flex: 0 0 8px;
-  height: 24px;
-  margin-right: -6px; /* 增强可点中性 */
-  border-right: 2px solid transparent;
+  position: relative; width: 8px; cursor: col-resize; flex: 0 0 8px; height: 24px;
+  margin-right: -6px; border-right: 2px solid transparent;
 }
-.th-resizer:hover {
-  border-right-color: #c7d2fe;
-}
+.th-resizer:hover { border-right-color: #c7d2fe; }
 
 /* 空状态 */
-.empty {
-  text-align: center;
-  padding: 20px 12px;
-  color: #6b7280;
-}
+.empty { text-align: center; padding: 20px 12px; color: #6b7280; }
 
-/* 轻量标签组 */
-.chip-group .badge { margin-right: 0; }
-
-/* 更柔和的滚动条（可选） */
+/* 滚动条（可选） */
 .table-scroll::-webkit-scrollbar { height: 10px; }
-.table-scroll::-webkit-scrollbar-thumb {
-  background: #e5e7eb;
-  border-radius: 10px;
-}
+.table-scroll::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
 .table-scroll::-webkit-scrollbar-thumb:hover { background: #d1d5db; }

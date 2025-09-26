@@ -10,9 +10,10 @@ function humanAmount(asset, raw) {
   const d = ASSET_DECIMALS[a] ?? 6;
   try {
     const n = BigInt(raw);
-    const int = n / BigInt(10 ** d);
-    const frac = (n % BigInt(10 ** d)).toString().padStart(d, '0').replace(/0+$/, '');
-    return frac ? `${int}.${frac}` : `${int}`;
+    const base = BigInt(10) ** BigInt(d);
+    const int = n / base;
+    const fracRaw = (n % base).toString().padStart(d, '0').replace(/0+$/, '');
+    return fracRaw ? `${int}.${fracRaw}` : `${int}`;
   } catch {
     return raw;
   }
@@ -31,12 +32,8 @@ const STATE_COLOR = {
   failure: '#dc2626'
 };
 
-function badge(color, text) {
-  return (
-    <span className="badge" style={{ background: color }}>
-      {text}
-    </span>
-  );
+function Badge({ color, text }) {
+  return <span className="badge" style={{ background: color }}>{text}</span>;
 }
 
 function useQueryParams() {
@@ -50,22 +47,22 @@ function useQueryParams() {
   return q;
 }
 
-/** ====== 列配置（可拖拽宽度） ====== */
+/** ====== 列配置（可拖拽宽度，min=40 实现“像 Excel 一样能拉很窄”） ====== */
+const MIN_COL = 40;
 const COLUMN_DEFS = [
-  { key: 'time', label: '时间', min: 140, init: 180 },
-  { key: 'asset', label: '资产', min: 90, init: 110 },
-  { key: 'route', label: '路径', min: 140, init: 180 },
-  { key: 'state', label: '状态', min: 120, init: 150 },
-  { key: 'amount', label: '金额', min: 160, init: 200 },
-  { key: 'sourceAddress', label: '来源地址', min: 360, init: 520, mono: true, forceOneLine: true },
-  { key: 'destinationAddress', label: '目的地址', min: 360, init: 520, mono: true, forceOneLine: true },
-  { key: 'sourceTxHash', label: '源Tx', min: 420, init: 560, mono: true, forceOneLine: true },
-  { key: 'destinationTxHash', label: '目的Tx', min: 420, init: 560, mono: true, forceOneLine: true },
-  { key: 'protocolAddress', label: '协议地址', min: 360, init: 480, mono: true, forceOneLine: true },
-  { key: 'fees', label: '费用', min: 160, init: 200 },
+  { key: 'time', label: '时间', min: MIN_COL, init: 160 },
+  { key: 'asset', label: '资产', min: MIN_COL, init: 90 },
+  { key: 'route', label: '路径', min: MIN_COL, init: 140 },
+  { key: 'state', label: '状态', min: MIN_COL, init: 120 },
+  { key: 'amount', label: '金额', min: MIN_COL, init: 160 },
+  { key: 'sourceAddress', label: '来源地址', min: MIN_COL, init: 480, mono: true, forceOneLine: true, tooltip: true },
+  { key: 'destinationAddress', label: '目的地址', min: MIN_COL, init: 480, mono: true, forceOneLine: true, tooltip: true },
+  { key: 'sourceTxHash', label: '源Tx', min: MIN_COL, init: 560, mono: true, forceOneLine: true, tooltip: true },
+  { key: 'destinationTxHash', label: '目的Tx', min: MIN_COL, init: 560, mono: true, forceOneLine: true, tooltip: true },
+  { key: 'protocolAddress', label: '协议地址', min: MIN_COL, init: 420, mono: true, forceOneLine: true, tooltip: true },
+  { key: 'fees', label: '费用', min: MIN_COL, init: 180 },
 ];
 
-/** ====== 主页面 ====== */
 export default function Page() {
   const q = useQueryParams();
   const [address, setAddress] = useState(q.get('address') || '');
@@ -76,15 +73,11 @@ export default function Page() {
 
   // 列宽状态
   const [colWidths, setColWidths] = useState(() =>
-    COLUMN_DEFS.reduce((acc, c) => {
-      acc[c.key] = c.init;
-      return acc;
-    }, {})
+    COLUMN_DEFS.reduce((acc, c) => { acc[c.key] = c.init; return acc; }, {})
   );
 
   // 拖拽状态
   const dragRef = useRef({ activeKey: null, startX: 0, startW: 0 });
-  const tableRef = useRef(null);
 
   // 同步 URL
   useEffect(() => {
@@ -110,9 +103,7 @@ export default function Page() {
     setError('');
     setData(null);
     try {
-      const res = await fetch(
-        `/api/operations?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`
-      );
+      const res = await fetch(`/api/operations?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`);
       const json = await res.json();
       if (!res.ok) {
         setError(json?.error || `HTTP ${res.status}`);
@@ -131,7 +122,7 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** ====== 拖拽列宽 ====== */
+  /** ====== 拖拽列宽（像 Excel 一样自由缩放，最小 40px） ====== */
   const onDown = (key, e) => {
     const th = e.currentTarget.parentElement; // <th>
     const startW = th.getBoundingClientRect().width;
@@ -146,7 +137,7 @@ export default function Page() {
     if (!activeKey) return;
     const delta = e.clientX - startX;
     const def = COLUMN_DEFS.find(c => c.key === activeKey);
-    const newW = Math.max(def?.min || 60, Math.round(startW + delta));
+    const newW = Math.max(def?.min ?? MIN_COL, Math.round(startW + delta));
     setColWidths(prev => ({ ...prev, [activeKey]: newW }));
   }, []);
 
@@ -156,25 +147,17 @@ export default function Page() {
     document.removeEventListener('mouseup', onUp);
   }, [onMove]);
 
-  /** ====== 单元格内容渲染 ====== */
+  /** ====== 单元格内容渲染（长字段加 title 提示，避免跨列遮挡） ====== */
   const renderCell = (op, key) => {
     switch (key) {
       case 'time':
         return op.opCreatedAt ? new Date(op.opCreatedAt).toLocaleString() : '';
       case 'asset':
-        return (
-          <div className="chip-group">
-            {badge('#111827', op.asset?.toUpperCase() || 'ASSET')}
-          </div>
-        );
+        return <Badge color="#111827" text={op.asset?.toUpperCase() || 'ASSET'} />;
       case 'route':
         return `${op.sourceChain} → ${op.destinationChain}`;
       case 'state':
-        return (
-          <div className="chip-group">
-            {badge(STATE_COLOR[op.state] || '#4b5563', op.state || '')}
-          </div>
-        );
+        return <Badge color={STATE_COLOR[op.state] || '#4b5563'} text={op.state || ''} />;
       case 'amount':
         return `${humanAmount(op.asset, op.sourceAmount)} ${op.asset?.toUpperCase()}`;
       case 'fees': {
@@ -200,8 +183,8 @@ export default function Page() {
   return (
     <main className="page-root">
       <header className="page-header">
-        <h1>Unit Operations Viewer</h1>
-        <p className="sub">输入 Hyperliquid / EVM 地址，查询该地址相关的 Deposit / Withdraw 操作（数据来源：Hyperunit API）。</p>
+        <h1>HyperUnit Viewer</h1>
+        <p className="sub">输入地址，查询该地址相关的 Deposit / Withdraw 操作。</p>
         <div className="toolbar">
           <input
             value={address}
@@ -217,22 +200,16 @@ export default function Page() {
             <option value="mainnet">Mainnet</option>
             <option value="testnet">Testnet</option>
           </select>
-          <button
-            onClick={fetchOps}
-            disabled={!address || loading}
-            className="btn"
-          >
+          <button onClick={fetchOps} disabled={!address || loading} className="btn">
             {loading ? '查询中…' : '查询'}
           </button>
         </div>
 
-        {error && (
-          <div className="alert-error">{error}</div>
-        )}
+        {error && <div className="alert-error">{error}</div>}
 
         {data?.addresses?.length > 0 && (
           <div className="proto-box">
-            <div className="proto-title"><strong>相关协议地址（protocol addresses）</strong></div>
+            <div className="proto-title"><strong>相关协议地址</strong></div>
             <ul className="proto-list">
               {data.addresses.map((a, i) => (
                 <li key={i}>
@@ -244,8 +221,8 @@ export default function Page() {
         )}
       </header>
 
-      <section className="table-wrap" ref={tableRef}>
-        <div className="table-scroll">
+      <section className="table-wrap">
+        <div className="table-scroll" title="提示：按住表头右侧竖条可拖动列宽；鼠标悬停可查看被省略的完整值">
           <table className="u-table" style={{ tableLayout: 'fixed', width: '100%' }}>
             <colgroup>
               {COLUMN_DEFS.map(col => (
@@ -270,21 +247,23 @@ export default function Page() {
             </thead>
             <tbody>
               {!loading && ops.length === 0 && address && !error && (
-                <tr>
-                  <td className="empty" colSpan={COLUMN_DEFS.length}>没有找到相关操作。</td>
-                </tr>
+                <tr><td className="empty" colSpan={COLUMN_DEFS.length}>没有找到相关操作。</td></tr>
               )}
               {ops.map((op, idx) => (
                 <tr key={idx} className="tr">
                   {COLUMN_DEFS.map(col => {
-                    const cls = [
+                    const raw = renderCell(op, col.key);
+                    const classNames = [
                       'td',
                       col.mono ? 'mono' : '',
                       col.forceOneLine ? 'nowrap' : '',
                     ].join(' ');
                     return (
-                      <td key={col.key} className={cls}>
-                        {renderCell(op, col.key)}
+                      <td key={col.key} className={classNames}>
+                        {/* cell-inner 负责裁切，避免跨列遮挡；title 提供完整查看 */}
+                        <div className="cell" title={col.tooltip ? String(raw) : undefined}>
+                          {raw}
+                        </div>
                       </td>
                     );
                   })}
