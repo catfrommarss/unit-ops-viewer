@@ -1,16 +1,15 @@
 /* app/globals.css */
-
-/* 主题色（柔和、对比足） */
+/* —— 主题（保留高级和谐渐变 + 柔和阴影） —— */
 :root{
-  --bg-start:#f7f9fc;   /* 顶部淡灰蓝 */
-  --bg-end:#eef2ff;     /* 底部淡靛紫 */
-  --text:#0f172a;       /* 近黑 */
-  --muted:#6b7280;      /* 次级文字 */
-  --card:#ffffff;       /* 卡片底 */
-  --line:#e5e7eb;       /* 分割线 */
-  --hover:#f8fafc;      /* 行悬浮 */
-  --brand:#111827;      /* 品牌深色 */
-  --thead1:#f9fafb;     /* 表头渐变 */
+  --bg-start:#f7f9fc;
+  --bg-end:#eef2ff;
+  --text:#0f172a;
+  --muted:#6b7280;
+  --card:#ffffff;
+  --line:#e5e7eb;
+  --hover:#f6faff;
+  --brand:#111827;
+  --thead1:#f9fafb;
   --thead2:#f3f4f6;
   --shadow:0 8px 28px rgba(2,6,23,.08);
   --shadow-soft:0 3px 12px rgba(2,6,23,.06);
@@ -31,7 +30,7 @@ body{
 .h1{font-size:28px;font-weight:800;margin:0;}
 .sub{color:var(--muted);margin:8px 0 22px;}
 
-.input, .select{
+.input,.select{
   border:1px solid var(--line);
   border-radius:12px;
   padding:10px 12px;
@@ -39,15 +38,12 @@ body{
   outline:none;
   box-shadow:var(--shadow-soft);
 }
-.input:focus, .select:focus{border-color:#94a3b8; box-shadow:0 0 0 3px #e2e8f0;}
-
+.input:focus,.select:focus{border-color:#94a3b8; box-shadow:0 0 0 3px #e2e8f0;}
 .btn{
   border:1px solid var(--brand);
   border-radius:12px;
   padding:10px 16px;
-  background:var(--brand);
-  color:#fff;
-  cursor:pointer;
+  background:var(--brand); color:#fff; cursor:pointer;
   transition:transform .04s ease, box-shadow .2s ease, opacity .2s ease;
   box-shadow:var(--shadow-soft);
 }
@@ -55,15 +51,19 @@ body{
 .btn:active{transform:translateY(1px);}
 .btn:disabled{opacity:.6;cursor:not-allowed}
 
-/* 表格（桌面端） */
+/* —— 表格（桌面端） —— */
 .table-wrap{
-  overflow-x:auto;
+  overflow-x:auto;               /* 整表横向滚动 */
   border:1px solid var(--line);
   border-radius:16px;
   background:var(--card);
   box-shadow:var(--shadow);
 }
-table{width:100%;border-collapse:collapse;table-layout:fixed;}
+table{
+  width:100%;
+  border-collapse:collapse;
+  table-layout:auto;             /* 关键：按内容自适应列宽（配合 nowrap） */
+}
 th,td{
   padding:12px 10px;
   border-bottom:1px solid #eef2f7;
@@ -72,8 +72,7 @@ th,td{
   vertical-align:top;
 }
 thead th{
-  font-weight:700;
-  color:var(--text);
+  font-weight:700; color:var(--text);
   background:linear-gradient(180deg, var(--thead1) 0%, var(--thead2) 100%);
   position:sticky; top:0; z-index:1;
 }
@@ -83,13 +82,23 @@ tbody tr:nth-child(even) td{background:#fcfcfd;}
 /* 标签/状态 */
 .badge{display:inline-block;padding:2px 8px;border-radius:9999px;color:#fff;font-size:12px;line-height:16px;}
 
-/* 等宽长串文本，允许换行显示“完整内容” */
+/* 等宽文本（默认可换行，用于一般字段） */
 .mono{
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size:12.5px;
+  letter-spacing:.2px;
   word-break: break-all;
   white-space: pre-wrap;
-  letter-spacing:.2px;
+}
+
+/* —— 长串一行全量展示（地址/Tx 专用） —— */
+.nowrap{
+  white-space: nowrap !important;      /* 单行 */
+  word-break: normal !important;       /* 不拆词 */
+  overflow-x: auto;                    /* 超出横向滚动（容器或整表） */
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  display: block;
 }
 
 /* 单击复制 */
@@ -105,7 +114,7 @@ tbody tr:nth-child(even) td{background:#fcfcfd;}
 .protolist{margin:0;padding-left:18px;}
 .protolist li{margin-bottom:4px}
 
-/* —— 移动端自适应：表格自动“卡片化” —— */
+/* —— 移动端自适应（卡片化） —— */
 @media (max-width: 860px){
   .controls{flex-direction:column;align-items:stretch}
   .table-wrap{border-radius:14px}
@@ -133,6 +142,8 @@ tbody tr:nth-child(even) td{background:#fcfcfd;}
     color:#334155;
     margin-bottom:6px;
   }
+  /* 移动端：长串仍保持单行，超出在该行内部横向滚动 */
+  .nowrap{max-width:100%; overflow-x:auto;}
   .copyable{padding-right:0}
   .copied-badge{position:static;transform:none;margin-top:6px;display:inline-block;}
 }
