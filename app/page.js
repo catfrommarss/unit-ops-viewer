@@ -109,8 +109,8 @@ export default function Page() {
       '来源地址',
       '目的地址',
       '状态',
-      '源Tx',
-      '目的Tx'
+      '源TxHash',
+      '目的TxHash'
     ];
 
     const rows = ops.map(op => [
@@ -213,8 +213,8 @@ export default function Page() {
                 <th>来源地址</th>
                 <th>目的地址</th>
                 <th>状态</th>
-                <th>源Tx</th>
-                <th>目的Tx</th>
+                <th>源TxHash</th>
+                <th>目的TxHash</th>
               </tr>
             </thead>
             <tbody>
